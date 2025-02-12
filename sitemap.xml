@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>https://portfolio-blog-starter.vercel.app</loc>
+<lastmod>2025-02-12</lastmod>
+</url>
+<url>
+<loc>https://portfolio-blog-starter.vercel.app/blog</loc>
+<lastmod>2025-02-12</lastmod>
+</url>
+<url>
+<loc>https://portfolio-blog-starter.vercel.app/blog/blazing-fast-pairwise-cosine-similarity</loc>
+<lastmod>2021-12-18</lastmod>
+</url>
+<url>
+<loc>https://portfolio-blog-starter.vercel.app/blog/the-golden-hour-of-craiyon-dalle-mini</loc>
+<lastmod>2025-02-13</lastmod>
+</url>
+</urlset>
