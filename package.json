@@ -1,25 +1,40 @@
 {
+  "homepage": "https://joel-huang.github.io/blog",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "serve": "pnpx serve@latest out"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.2",
+    "@tailwindcss/cli": "^4.0.6",
     "@tailwindcss/postcss": "4.0.0-alpha.13",
+    "@types/mdx": "^2.0.13",
     "@types/node": "20.11.17",
     "@types/react": "18.2.55",
     "@types/react-dom": "18.2.19",
     "@vercel/analytics": "^1.1.3",
+    "@vercel/og": "^0.6.5",
     "@vercel/speed-insights": "^1.0.9",
-    "geist": "1.2.2",
-    "next": "canary",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "embla-carousel-react": "^8.5.2",
+    "lucide-react": "^0.475.0",
+    "next": "^14.2.24",
     "next-mdx-remote": "^4.4.1",
     "postcss": "^8.4.35",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "sugar-high": "^0.6.0",
+    "react-slider": "^2.0.6",
+    "recharts": "^2.15.1",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "tailwind-merge": "^3.0.1",
     "tailwindcss": "4.0.0-alpha.13",
+    "tailwindcss-animate": "^1.0.7",
     "typescript": "5.3.3"
-  }
+  },
+  "packageManager": "pnpm@9.12.3+sha1.4fb96925d434c491285182acf29803bb9aa2e6e5"
 }
