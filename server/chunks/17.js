@@ -1,1 +1,0 @@
-"use strict";exports.id=17,exports.ids=[17],exports.modules={25017:(o,t,e)=>{e.r(t),e.d(t,{CopyCodeButton:()=>s});let s=(0,e(33434).createProxy)(String.raw`/Users/joel/blog/app/components/copy-code-button.tsx#CopyCodeButton`)}};
