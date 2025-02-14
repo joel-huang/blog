@@ -2,9 +2,9 @@
   "/_not-found/page": "app/_not-found/page.js",
   "/api/og/route": "app/api/og/route.js",
   "/blog/page": "app/blog/page.js",
-  "/page": "app/page.js",
   "/robots.txt/route": "app/robots.txt/route.js",
-  "/sitemap.xml/route": "app/sitemap.xml/route.js",
+  "/icon.ico/route": "app/icon.ico/route.js",
+  "/page": "app/page.js",
   "/blog/[slug]/page": "app/blog/[slug]/page.js",
-  "/icon.ico/route": "app/icon.ico/route.js"
+  "/sitemap.xml/route": "app/sitemap.xml/route.js"
 }
