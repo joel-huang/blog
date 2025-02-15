@@ -1,0 +1,135 @@
+---
+title: 'Creating Synthetic Data via Contextual Placement'
+publishedAt: '2021-12-02'
+tags: [ai]
+---
+
+## Creaing synthetic imagery to train object detectors
+Early on in Bifrost's journey, we took the simplest approach to create object detection scenarios:
+composite objects randomly on backgrounds. However, as contextual placement became necessary,
+the approach didn't scale.
+
+Why contexual? We need to create specialized samples to reinforce distributions and correlations in
+synthetic datasets. Object detectors trained on synthetic data, for instance, can fail on objects in
+rare or unrepresented contexts (referring to the environmental pixels *surrounding* the object), like
+aircrafts in grassy fields, or large boats in shipyards instead of on water.
+
+We thus built a smarter, but simple, method of determining suitable placement areas in large images,
+which we endearingly named *Mise en Place*.
+
+## Embedding image areas into vectors
+The early layers in trained convolutional neural networks are powerful feature extractors, even on smaller
+inputs <sup>[[1]](#citation-1)</sup>. We can exploit these layers to project small areas of the image into a feature embedding space,
+in which the embedding vectors have some notion of vector similarity.
+
+Here's how it works. We first split the original tile into a grid, feeding each individual cell into the
+initial layers of a pre-trained network (which collectively act as an encoder) and obtaining an embedding
+vector for that cell:
+
+<Embeddings />
+
+
+This vector acts as a latent representation of the content of the input cell.
+
+We then compute the cosine similarity between each cell's embedding vector $v_i$, and every other vector
+$v_j$, for every $j \in S \setminus i$,
+
+<center>
+$$\text{sim}(v_i, v_j) = \frac{v_i \cdot v_j}{\lVert v_i \rVert \lVert v_j \rVert}$$
+</center>
+
+![](/blog/creating-synthetic-data-contextual-placement/vecsim.svg)
+
+## Why not just compare the images directly?
+
+Evidently, similar cells produce vectors similar to each other. Now, one may wonder, why bother transforming
+the image cell into a vector? Why not simply calculate the similarity (or difference) of the input cell directly? Here's the problem.
+
+Say we're contrasting two cells $X$ and $Y$ by taking the sum of the absolute differences between corresponding
+pixel values:
+
+<center>
+$$\text{dist}(X, Y) = \sum_{i,j} \left\lvert\,X_{i,j} - Y_{i,j}\,\right\rvert$$
+</center>
+
+For the pairs below, the top pair has a total difference of `951103`, and the bottom `490118`. What's
+happening here?
+
+<center>
+![](/blog/creating-synthetic-data-contextual-placement/cellsim951103.png)
+![](/blog/creating-synthetic-data-contextual-placement/cellnotsim490118.png)
+</center>
+
+Let's look at the top row. The two cells seem visually similar, but the position of the diagonal feature
+doesn't line up perfectly. This causes the absolute difference between the two images to be large, showing up
+as white areas in the difference map.
+
+On the other hand, the bottom pair of cells don't look similar at all, and ar likely from different areas of
+the original image. But their difference remains low, since pixel value coincidentally match at the same
+locations, resulting in a lower difference score.
+
+The usefulness of the neural network her is in its *translationally-invariant* representation of the features
+in the image, creating embedding vectors that encode the content of each cell, rather than their literal values.
+
+## Selecting matching vectors
+Now that we've scored our cells, we'll want to query a single cell, and search for all the similar cells in
+the image. For instance, we've got this snazzy looking cell of... dirt over here.
+
+<div className="flex elevated items-center justify-center bg-neutral-700 rounded-lg select-none p-2">
+![](/blog/creating-synthetic-data-contextual-placement/query.png)
+</div>
+
+Since we have this query's similarity scores for every cell, we can rank the cells, filtering those most
+similar to it. The naïve approach is to choose the top-$k$ similar cells, but the manual task of determining
+the optimal number of cells remains. An alternative is to let the image speak for itself: we'll break down the
+distribution of scores into a Gaussian mixture model<sup>[[2]](#citation-2)</sup> and select cells belonging to the
+<span style={{color: "#ffa95d"}}>highest-scoring cluster</span>.
+
+<div className="flex elevated items-center justify-center bg-neutral-700 rounded-lg select-none p-2">
+![](/blog/creating-synthetic-data-contextual-placement/gmm.png)
+![](/blog/creating-synthetic-data-contextual-placement/similar.png)
+![](/blog/creating-synthetic-data-contextual-placement/squares.png)
+</div>
+
+## Doing science
+We might have managed to produce a visually consistent result, but we'll also need to design a performance
+metric, which lets us perform science: tweak parameters and measure how things change. From the final group
+of similar cells, we can recover a coarse segmentation mask, compared to the original land-cover segmentation
+mask on the right. Though we've managed to match a significant proportion of the cover, we've also let too much
+through.
+
+<div className="flex elevated items-center justify-center bg-neutral-700 rounded-lg select-none p-2">
+![](/blog/creating-synthetic-data-contextual-placement/coarse.png)
+</div>
+
+To quantify our closeness to the original segmentation mask, we'll employ the Jaccard
+index<sup>[[3]](#citation-3)</sup>, or intersection-over-union (IoU):
+
+<center>
+$$J(y, \hat{y}) = \frac{\lvert y \cap \hat{y} \rvert}{\lvert y \cup \hat{y} \rvert} = 0.447$$
+</center>
+
+That's great! Now we're able to tweak some design choices and observe how close our results are to the
+ground-truth segmentation.
+
+<div className="flex elevated items-center justify-center bg-neutral-700 rounded-lg select-none p-2">
+![](/blog/creating-synthetic-data-contextual-placement/iou_vs_cellsize.png)
+</div>
+
+For instance, we can vary the cell size, and track its effect on the Jaccard index. For each cell size,
+we'd take the average IoU over 5 runs, using a random query cell each time. This hints that the optimal cell
+size for this particular image is around 35px -- if we're restricting ourselves to a fixed cell size, we can
+run this experiment over many images and try and determine the best average case.
+
+## A quick and useful hack
+This was a useful early approach to distribute objects on underrepresented areas. Though this method retains
+and leverages the raw power of a trained neural network, it's fast and quick to develop, since no training is
+involved!
+
+## References
+
+<div className="flex flex-col text-xs no-underline">
+  <a style={{textDecorationLine: "none"}} name="citation-1">[1] Sergey Zagoruyko, & Nikos Komodakis (2015). Learning to Compare Image Patches via Convolutional Neural Networks. arXiv preprint arXiv: Arxiv-1504.03641.</a>
+  <a style={{textDecorationLine: "none"}} name="citation-2">[2] Duda, R., & Hart, P. (1973). Pattern classification and scene analysis. (Vol. 3) Wiley New York.</a>
+  <a style={{textDecorationLine: "none"}} name="citation-3">[3] Jaccard, P. (1912). THE DISTRIBUTION OF THE FLORA IN THE ALPINE ZONE. New Phytologist, 11(2), 37-50.</a>
+</div>

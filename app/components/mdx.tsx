@@ -7,11 +7,13 @@ import React from "react";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
-import Timeline from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/timeline";
-import HoverImagePreview from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/hover-image-preview";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
+
+import Timeline from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/timeline";
+import HoverImagePreview from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/hover-image-preview";
 import CraiyonExamples from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/craiyon";
+import Embeddings from "@/app/blog/posts/creating-synthetic-data-contextual-placement/embeddings";
 
 const TimingChart = dynamic(
   () => import("@/app/blog/posts/blazing-fast-pairwise-cosine-similarity/chart")
@@ -124,6 +126,7 @@ let components = {
   Timeline,
   CraiyonExamples,
   HoverImagePreview,
+  Embeddings,
 };
 
 export function CustomMDX(props) {
