@@ -172,8 +172,8 @@ const Embeddings: React.FC = () => {
         "points",
         `${w - px} ${py}, ${px} ${px}, ${px} ${h - px}, ${w - px} ${h - py}`
       )
-      .attr("fill", "rgba(255, 255, 255, 0.1)")
-      .attr("stroke", "rgba(255, 255, 255, 0.2)")
+      .attr("fill", "#444")
+      .attr("stroke", "#555")
       .attr("stroke-width", 2);
 
     encoder
@@ -181,7 +181,7 @@ const Embeddings: React.FC = () => {
       .attr("x", Math.floor(w / 2))
       .attr("y", Math.floor(h / 2) - 10) // Adjust starting position
       .style("text-anchor", "middle")
-      .style("fill", "rgba(255, 255, 255, 0.6)")
+      .style("fill", "#777")
       .style("font-size", 16)
       .selectAll("tspan")
       .data(["Pre-trained", "Encoder"])

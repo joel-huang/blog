@@ -13,7 +13,7 @@ const FilterPosts: React.FC<FilterPostsProps> = ({
 }) => {
   return (
     <div className="flex justify-end gap-2 mb-6 text-xs">
-      <h2 className="text-neutral-300">Filter tagged</h2>
+      <h2 className="text-neutral-600 dark:text-neutral-300">Filter tagged</h2>
       <div className="flex gap-1">
         {uniqueTags.map((tag) => (
           <button
@@ -21,8 +21,8 @@ const FilterPosts: React.FC<FilterPostsProps> = ({
             onClick={setSelectedTag.bind(null, tag)}
             className={`${
               tag === selectedTag
-                ? "bg-neutral-400 text-neutral-800"
-                : "bg-neutral-800 text-neutral-400"
+                ? "dark:bg-neutral-400 dark:text-neutral-800 bg-neutral-200"
+                : "dark:bg-neutral-800 dark:text-neutral-400 bg-neutral-100"
             } elevated rounded-sm px-1 ${inconsolata.className}`}
           >
             {tag}

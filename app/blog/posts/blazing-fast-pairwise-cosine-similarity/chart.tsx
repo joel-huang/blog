@@ -52,9 +52,11 @@ const ToggleLog = ({
 }) => {
   return (
     <div className="w-full flex gap-2 justify-end">
-      <span className="text-neutral-200">{isLog ? "Log" : "Linear"}</span>
+      <span className="text-neutral-800 dark:text-neutral-200">
+        {isLog ? "Log" : "Linear"}
+      </span>
       <button
-        className="bg-neutral-800 hover:bg-neutral-700 elevated py-1 px-1.5 rounded-sm"
+        className="bg-neutral-200 hover:bg-neutral-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 elevated py-1 px-1.5 rounded-sm"
         onClick={() => setIsLog(!isLog)}
       >
         {isLog ? (
@@ -74,10 +76,21 @@ const ToggleLog = ({
 function TimingChart() {
   const [isLog, setIsLog] = React.useState(true);
   const [mounted, setMounted] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(false); // Initialize with false
 
   // Handle hydration mismatch
   React.useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Move isDarkMode initialization inside useEffect
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => setIsDarkMode(e.matches);
+
+    setIsDarkMode(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   if (!mounted) {
@@ -88,6 +101,11 @@ function TimingChart() {
     ...d,
     time: isLog ? Math.log(d.time) : d.time,
   }));
+
+  const backgroundColor = isDarkMode ? "#333" : "#ccc";
+  const foregroundColor = isDarkMode ? "#ccc" : "#333";
+  const tooltipBackgroundColor = isDarkMode ? "#222" : "#ddd";
+  const tooltipForegroundColor = isDarkMode ? "#ddd" : "#222";
 
   return (
     <div className="flex flex-col gap-2">
@@ -121,14 +139,14 @@ function TimingChart() {
           </YAxis>
           <Tooltip
             labelStyle={{
-              color: "rgb(229, 229, 229)",
+              color: tooltipForegroundColor,
             }}
             itemStyle={{
-              color: "rgb(229, 229, 229)",
+              color: tooltipForegroundColor,
             }}
-            cursor={{ fill: "rgba(38, 38, 38, 0.25)" }}
+            cursor={{ fill: "#CE9178", opacity: 0.5 }}
             contentStyle={{
-              backgroundColor: "rgb(38, 38, 38)",
+              backgroundColor: tooltipBackgroundColor,
               border: "none",
               boxShadow:
                 "0px 3px 6px rgba(0, 0, 0, 0.1), 0px 1px 3px rgba(0, 0, 0, 0.18), inset 0px 1px 0px rgba(255, 255, 255, 0.08), inset 0px 0px 1px rgba(255, 255, 255, 0.3)",
@@ -147,7 +165,13 @@ function TimingChart() {
             {CHART_DATA.map((_, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={index === CHART_DATA.length - 1 ? "#CE9178" : "#333"}
+                fill={
+                  index === CHART_DATA.length - 1
+                    ? "#CE9178"
+                    : isDarkMode
+                    ? "#333"
+                    : "#ccc"
+                }
               />
             ))}
           </Bar>
