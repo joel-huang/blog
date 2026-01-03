@@ -1,8 +1,6 @@
 import "@/app/global.css";
 import type { Metadata } from "next";
 import { inter } from "@/app/fonts";
-import { Navbar } from "@/app/components/nav";
-import Footer from "@/app/components/footer";
 import { baseUrl } from "@/app/sitemap";
 import { cn } from "@/lib/utils";
 
@@ -51,12 +49,8 @@ export default function RootLayout({
       lang="en"
       className={cn("h-full w-full !cursor-default", inter.className)}
     >
-      <body className="antialiased max-w-xl mx-4 mt-8 sm:mx-auto">
-        <main className="flex-auto min-w-0 mt-6 flex flex-col px-2 md:px-0">
-          <Navbar />
-          {children}
-          <Footer />
-        </main>
+      <body className="antialiased">
+        {children}
       </body>
     </html>
   );
