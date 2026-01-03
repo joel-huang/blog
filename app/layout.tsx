@@ -47,8 +47,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      translate="no"
       className={cn("h-full w-full !cursor-default", inter.className)}
     >
+      <meta name="google" content="notranslate" />
       <body className="antialiased">
         {children}
       </body>

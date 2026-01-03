@@ -38,34 +38,20 @@
   --sh-property: #D4D4D4;
   --sh-entity: #D4D4D4;
 
-  /* Layout */
-  --min-width: 360px;
-  --max-content-width: 700px;
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(0 0% 3.9%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 3.9%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 3.9%);
-  --primary: hsl(0 0% 9%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(0 0% 96.1%);
-  --secondary-foreground: hsl(0 0% 9%);
-  --muted: hsl(0 0% 96.1%);
-  --muted-foreground: hsl(0 0% 45.1%);
-  --accent: hsl(0 0% 96.1%);
-  --accent-foreground: hsl(0 0% 9%);
-  --destructive: hsl(0 84.2% 60.2%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --border: hsl(0 0% 89.8%);
-  --input: hsl(0 0% 89.8%);
-  --ring: hsl(0 0% 3.9%);
-  --chart-1: hsl(12 76% 61%);
-  --chart-2: hsl(173 58% 39%);
-  --chart-3: hsl(197 37% 24%);
-  --chart-4: hsl(43 74% 66%);
-  --chart-5: hsl(27 87% 67%);
-  --radius: 0.6rem;
+  /* Divelog */
+  --divelog-background: hsl(240 5.9% 10%);
+  --divelog-foreground: hsl(240 4.8% 90.9%);
+  --divelog-highlight: hsl(216, 87%, 63%);
+  --divelog-primary: hsl(224.3 76.3% 48%);
+  --divelog-primary-foreground: hsl(0 0% 100%);
+  --divelog-accent: hsl(240 3.7% 15.9%);
+  --divelog-accent-foreground: hsl(240 4.8% 90.9%);
+  --divelog-border: hsl(240 3.7% 15.9%);
+  --divelog-ring: hsl(217.2 91.2% 59.8%);
+  --divelog-muted: hsl(240 3.7% 15.9%);
+  --divelog-muted-foreground: hsl(240 4.8% 75%);
+  --divelog-card-background: hsl(240 3.7% 15.9%);
+  --divelog-card-border: hsl(240 3.7% 25.9%);
 }
 
 /* Dark mode overrides */
@@ -76,7 +62,7 @@
     --sh-keyword: #D4D4D4;
     --sh-string: #CE9178;
   }
-  
+
   html {
     color-scheme: dark;
   }
@@ -92,11 +78,11 @@
   .prose pre {
     background-color: var(--color-background-muted) !important;
   }
-  
+
   .prose pre code {
     color: var(--color-foreground) !important;
   }
-  
+
   .prose code {
     background-color: var(--color-background-muted) !important;
     color: var(--color-foreground) !important;
@@ -274,4 +260,127 @@ table {
 
 .title {
   text-wrap: balance;
+}
+
+@theme {
+  --color-divelog-background: var(--divelog-background);
+  --color-divelog-foreground: var(--divelog-foreground);
+  --color-divelog-highlight: var(--divelog-highlight);
+  --color-divelog-primary: var(--divelog-primary);
+  --color-divelog-primary-foreground: var(--divelog-primary-foreground);
+  --color-divelog-accent: var(--divelog-accent);
+  --color-divelog-accent-foreground: var(--divelog-accent-foreground);
+  --color-divelog-border: var(--divelog-border);
+  --color-divelog-ring: var(--divelog-ring);
+  --color-divelog-muted: var(--divelog-muted);
+  --color-divelog-muted-foreground: var(--divelog-muted-foreground);
+  --color-divelog-card-background: var(--divelog-card-background);
+  --color-divelog-card-border: var(--divelog-card-border);
+}
+
+/* Holographic Card Effect - Only when sidebar is expanded */
+[data-state="expanded"] .holo-card-wrapper {
+  position: relative;
+  width: 100%;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --rotate-x: 0deg;
+  --rotate-y: 0deg;
+}
+
+[data-state="expanded"] .holo-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Subtle light reflection - contained within card */
+[data-state="expanded"] .holo-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(
+      circle 150px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0.05) 30%,
+      transparent 60%
+    );
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+[data-state="expanded"] .holo-card:hover::before {
+  opacity: 1;
+}
+
+/* Subtle holographic shine - very contained */
+[data-state="expanded"] .holo-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.03) 40%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 60%,
+      transparent 70%
+    );
+  background-size: 200% 200%;
+  background-position: 
+    calc(var(--mouse-x, 50%) - 50%) calc(var(--mouse-y, 50%) - 50%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+[data-state="expanded"] .holo-card:hover::after {
+  opacity: 1;
+}
+
+/* 3D tilt and subtle shadow on hover */
+[data-state="expanded"] .holo-card-wrapper:hover .holo-card {
+  transform: 
+    perspective(1000px)
+    rotateX(var(--rotate-x, 0deg))
+    rotateY(var(--rotate-y, 0deg))
+    scale(1.005);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Ensure content stays above effects */
+[data-state="expanded"] .holo-card > * {
+  position: relative;
+  z-index: 3;
+}
+
+/* Prevent margin-right from scroll lock */
+body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Fix dialog sizing on orientation change - use dynamic viewport units when supported */
+@supports (width: 100dvw) {
+  @media (max-width: 639px) {
+    [data-radix-dialog-content] {
+      width: calc(100dvw - 2rem);
+    }
+  }
 }
