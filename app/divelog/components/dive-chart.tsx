@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useRef, useEffect, useCallback, useState } from "react"
+import NextImage from "next/image"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Customized } from "recharts"
 import { ArrowDownFromLine, Clock, Timer, Play, Image } from "lucide-react"
 import { useIsMobile } from "@/app/divelog/hooks/use-mobile"
@@ -171,9 +172,15 @@ export const DiveChart = memo(function DiveChart({
   const isMobile = useIsMobile()
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const xAxisScaleRef = useRef<((value: number) => number) | null>(null);
+  const xAxisScaleObjRef = useRef<any>(null);
+  const yAxisScaleObjRef = useRef<any>(null);
   const scaleReadyRef = useRef(false);
   const currentHoveredIndexRef = useRef<number | null>(null);
   const [isTouching, setIsTouching] = useState(false);
+  const [activePoint, setActivePoint] = useState<ActivePoint | null>(null);
+  const activeIndexRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const latestClientXRef = useRef<number | null>(null);
 
   // Reveal markers once the chart scale becomes available (without rerendering markers).
   useEffect(() => {
@@ -374,6 +381,13 @@ export const DiveChart = memo(function DiveChart({
     diveMediaRef.current = diveMedia;
   }, [diveMedia]);
 
+  const baseChartDataRef = useRef(baseChartData);
+  const baseTimesRef = useRef<number[]>([]);
+  useEffect(() => {
+    baseChartDataRef.current = baseChartData;
+    baseTimesRef.current = baseChartData.map(d => d.time);
+  }, [baseChartData]);
+
   // Throttle state updates to prevent flickering during touch events
   const updateHoveredIndex = useCallback((index: number | null) => {
     if (index !== currentHoveredIndexRef.current) {
@@ -381,6 +395,78 @@ export const DiveChart = memo(function DiveChart({
       setHoveredMediaIndex(index);
     }
   }, [setHoveredMediaIndex]);
+
+  const scheduleActiveUpdate = useCallback((clientX: number) => {
+    latestClientXRef.current = clientX;
+    if (rafRef.current !== null) return;
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null;
+      const latest = latestClientXRef.current;
+      if (latest === null) return;
+      if (!chartContainerRef.current) return;
+      const xScale: any = xAxisScaleObjRef.current;
+      const yScale: any = yAxisScaleObjRef.current;
+      if (!xScale || !yScale) return;
+
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      const adjustedX = latest - rect.left;
+
+      const data = baseChartDataRef.current;
+      const times = baseTimesRef.current;
+      if (!data.length || !times.length) return;
+
+      const findNearestIndexByTime = (t: number) => {
+        let lo = 0;
+        let hi = times.length - 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          const v = times[mid];
+          if (v === t) return mid;
+          if (v < t) lo = mid + 1;
+          else hi = mid - 1;
+        }
+        // lo is insertion point; compare lo and lo-1
+        const a = Math.max(0, Math.min(times.length - 1, lo));
+        const b = Math.max(0, a - 1);
+        return Math.abs(times[a] - t) < Math.abs(times[b] - t) ? a : b;
+      };
+
+      let nearestIndex = 0;
+      if (typeof xScale.invert === 'function') {
+        const t = xScale.invert(adjustedX);
+        nearestIndex = findNearestIndexByTime(t);
+      } else {
+        // Fallback: compare pixel distances directly
+        let bestDist = Infinity;
+        let bestIdx = 0;
+        for (let i = 0; i < data.length; i++) {
+          const px = xScale(data[i].time);
+          const dist = Math.abs(px - adjustedX);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestIdx = i;
+          }
+        }
+        nearestIndex = bestIdx;
+      }
+
+      if (activeIndexRef.current === nearestIndex) return;
+      activeIndexRef.current = nearestIndex;
+
+      const pt = data[nearestIndex];
+      const x = xScale(pt.time);
+      const y = yScale(pt.depth);
+      if (typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) return;
+
+      setActivePoint({ time: pt.time, depth: pt.depth, x, y });
+    });
+  }, []);
+
+  const clearActive = useCallback(() => {
+    latestClientXRef.current = null;
+    activeIndexRef.current = null;
+    setActivePoint(null);
+  }, []);
 
   const findClosestMediaIndex = useCallback((clientX: number) => {
     if (!xAxisScaleRef.current || !chartContainerRef.current || diveMediaRef.current.length === 0) return null;
@@ -411,10 +497,12 @@ export const DiveChart = memo(function DiveChart({
     if (bestIndex !== null) {
       updateHoveredIndex(bestIndex);
     }
+    scheduleActiveUpdate(e.clientX);
   }, [findClosestMediaIndex, updateHoveredIndex]);
 
   const handleMouseLeave = useCallback(() => {
     updateHoveredIndex(null);
+    clearActive();
   }, [updateHoveredIndex]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -425,6 +513,7 @@ export const DiveChart = memo(function DiveChart({
     if (bestIndex !== null) {
       updateHoveredIndex(bestIndex);
     }
+    scheduleActiveUpdate(touch.clientX);
   }, [findClosestMediaIndex, updateHoveredIndex]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -434,16 +523,19 @@ export const DiveChart = memo(function DiveChart({
     if (bestIndex !== null) {
       updateHoveredIndex(bestIndex);
     }
+    scheduleActiveUpdate(touch.clientX);
   }, [findClosestMediaIndex, updateHoveredIndex]);
 
   const handleTouchEnd = useCallback(() => {
     setIsTouching(false);
     updateHoveredIndex(null);
+    clearActive();
   }, [updateHoveredIndex]);
 
   const handleTouchCancel = useCallback(() => {
     setIsTouching(false);
     updateHoveredIndex(null);
+    clearActive();
   }, [updateHoveredIndex]);
 
   // Prevent text selection and default click behavior
@@ -565,66 +657,80 @@ export const DiveChart = memo(function DiveChart({
             stroke={isNightDive ? "var(--divelog-muted-foreground)" : "var(--divelog-highlight)"}
             strokeWidth={2}
             dot={false}
-            activeDot={isMobile && !isTouching ? false : ActiveDot}
+            activeDot={false}
             isAnimationActive={false}
             animationDuration={0}
           />
-          {/* Tooltip/cursor must be last so it draws above markers + lines */}
-          <RechartsTooltip
-            isAnimationActive={false}
-            animationDuration={0}
-            offset={50}
-            cursor={isMobile && !isTouching ? false : true}
-            content={({ active, payload, label }) => {
-              // Hide tooltip on mobile when touch has ended (even if Recharts thinks it's active)
-              if (isMobile && !isTouching) return null;
-              if (!active || !payload || !payload.length) return null;
-              const depth = payload[0].value as number;
-              const totalSeconds = label as number;
+          <Customized
+            component={(props: any) => {
+              const { xAxisMap, yAxisMap, width, height } = props;
+              const xAxis = xAxisMap ? (Object.values(xAxisMap)[0] as any) : null;
+              const yAxis = yAxisMap ? (Object.values(yAxisMap)[0] as any) : null;
+              if (xAxis?.scale) {
+                xAxisScaleObjRef.current = xAxis.scale;
+              }
+              if (yAxis?.scale) {
+                yAxisScaleObjRef.current = yAxis.scale;
+              }
 
-              // Calculate actual time from dive start + time offset
-              // diveStartTime is UTC-based, so we use UTC methods and display as local time
-              const tooltipTime = new Date(diveStartTime + totalSeconds * 1000);
-              // Get UTC time and display it directly (since dive times are stored as local time values)
-              const utcHours = tooltipTime.getUTCHours();
-              const utcMinutes = tooltipTime.getUTCMinutes();
-              // For display, treat UTC time as if it were local time (since dive times are in local timezone)
-              const timeHours = utcHours;
-              const timeMinutes = utcMinutes;
-              const ampm = timeHours >= 12 ? 'pm' : 'am';
-              const displayHours = timeHours % 12 || 12;
-              const formattedTime = `${displayHours}:${timeMinutes.toString().padStart(2, '0')}${ampm}`;
+              // Only show cursor/dot/tooltip while interacting (touch) or hovering (desktop).
+              const show = !!activePoint && (!isMobile || isTouching);
+              if (!show || !activePoint) return null;
 
-              // Format duration (time offset)
-              const durationMinutes = Math.floor(totalSeconds / 60);
-              const durationSeconds = Math.floor(totalSeconds % 60);
-              const durationStr = `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+              const svgW = typeof width === 'number' ? width : 0;
+              const svgH = typeof height === 'number' ? height : 0;
+
+              const tooltipW = 150;
+              const tooltipH = 96;
+              const pad = 12;
+
+              const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+              const tx = clamp(activePoint.x - tooltipW - pad, 0, Math.max(0, svgW - tooltipW));
+              const ty = clamp(activePoint.y - tooltipH - pad, 0, Math.max(0, svgH - tooltipH));
+
+              const durationStr = formatDuration(activePoint.time);
+              const formattedTime = formatDiveTime(diveStartTime, activePoint.time);
 
               return (
-                <div
-                  style={{
-                    backgroundColor: "var(--divelog-card-background)",
-                    border: "1px solid var(--divelog-card-border)",
-                    borderRadius: "0.5rem",
-                    padding: "0.5rem",
-                    textAlign: "left",
-                    position: "relative",
-                    zIndex: 1000,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <ArrowDownFromLine size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                    <span>{depth.toFixed(1)}m</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <Timer size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                    <span>{durationStr}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <Clock size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                    <span>{formattedTime}</span>
-                  </div>
-                </div>
+                <g style={{ pointerEvents: 'none' }}>
+                  {/* cursor line behind dot */}
+                  <line
+                    x1={activePoint.x}
+                    x2={activePoint.x}
+                    y1={0}
+                    y2={svgH}
+                    stroke="rgba(255,255,255,0.65)"
+                    strokeWidth={1}
+                  />
+                  {/* avatar dot above cursor line */}
+                  <ActiveDot cx={activePoint.x} cy={activePoint.y} />
+                  {/* tooltip above everything */}
+                  <foreignObject x={tx} y={ty} width={tooltipW} height={tooltipH}>
+                    <div
+                      style={{
+                        backgroundColor: "var(--divelog-card-background)",
+                        border: "1px solid var(--divelog-card-border)",
+                        borderRadius: "0.5rem",
+                        padding: "0.5rem",
+                        textAlign: "left",
+                        position: "relative",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <ArrowDownFromLine size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+                        <span>{activePoint.depth.toFixed(1)}m</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Timer size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+                        <span>{durationStr}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <Clock size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+                        <span>{formattedTime}</span>
+                      </div>
+                    </div>
+                  </foreignObject>
+                </g>
               );
             }}
           />
