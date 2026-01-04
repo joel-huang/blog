@@ -200,102 +200,104 @@ export function DiveChart({
   // Store markers rendered state to prevent re-renders after initial render
   const markersRenderedRef = useRef(false);
   const markersDataRef = useRef(diveMedia);
+  const failedThumbnailsRef = useRef(failedThumbnails);
+  const onThumbnailErrorRef = useRef(onThumbnailError);
 
-  // Update markers data ref when diveMedia changes, but only if markers haven't been rendered yet
+  // Update refs when values change (but don't trigger re-render)
   useEffect(() => {
-    if (!markersRenderedRef.current) {
-      markersDataRef.current = diveMedia;
-    }
-  }, [diveMedia]);
+    markersDataRef.current = diveMedia;
+    failedThumbnailsRef.current = failedThumbnails;
+    onThumbnailErrorRef.current = onThumbnailError;
+  }, [diveMedia, failedThumbnails, onThumbnailError]);
 
   // Media markers component - renders all media markers on the chart
   // Rendered once and never re-rendered to prevent flickering
-  const MediaMarkers = useMemo(() => {
-    return (props: any) => {
-      const { xAxisMap, yAxisMap } = props;
-      if (!xAxisMap || !yAxisMap || markersDataRef.current.length === 0) return null;
+  // Use useCallback with empty deps to create a stable reference
+  const MediaMarkers = useCallback((props: any) => {
+    const { xAxisMap, yAxisMap } = props;
+    if (!xAxisMap || !yAxisMap || markersDataRef.current.length === 0) return null;
 
-      const xAxis = Object.values(xAxisMap)[0] as any;
-      const yAxis = Object.values(yAxisMap)[0] as any;
+    const xAxis = Object.values(xAxisMap)[0] as any;
+    const yAxis = Object.values(yAxisMap)[0] as any;
 
-      if (!xAxis || !yAxis) return null;
+    if (!xAxis || !yAxis) return null;
 
-      // Store the XAxis scale for mouse tracking and mark scale as ready
-      if (xAxis.scale && yAxis.scale && typeof xAxis.scale === 'function' && typeof yAxis.scale === 'function') {
-        xAxisScaleRef.current = xAxis.scale;
-        // Mark scale as ready using ref (will trigger state update via useEffect)
-        if (!scaleReadyRef.current) {
-          scaleReadyRef.current = true;
-        }
-        // Mark markers as rendered once scale is ready
-        if (!markersRenderedRef.current) {
-          markersRenderedRef.current = true;
-        }
+    // Store the XAxis scale for mouse tracking and mark scale as ready
+    if (xAxis.scale && yAxis.scale && typeof xAxis.scale === 'function' && typeof yAxis.scale === 'function') {
+      xAxisScaleRef.current = xAxis.scale;
+      // Mark scale as ready using ref (will trigger state update via useEffect)
+      if (!scaleReadyRef.current) {
+        scaleReadyRef.current = true;
       }
+      // Mark markers as rendered once scale is ready
+      if (!markersRenderedRef.current) {
+        markersRenderedRef.current = true;
+      }
+    }
 
-      const radius = 8;
-      const size = radius * 2;
-      const scaleFactor = 1.2;
-      // Make container larger to accommodate scaled content
-      const containerSize = size * scaleFactor;
-      const containerOffset = (containerSize - size) / 2;
+    const radius = 8;
+    const size = radius * 2;
+    const scaleFactor = 1.2;
+    // Make container larger to accommodate scaled content
+    const containerSize = size * scaleFactor;
+    const containerOffset = (containerSize - size) / 2;
 
-      // Use the ref data to prevent re-renders - once rendered, use the ref data
-      const mediaToRender = markersRenderedRef.current ? markersDataRef.current : (markersDataRef.current.length > 0 ? markersDataRef.current : diveMedia);
+    // Always use the ref data - it's updated via useEffect without causing re-renders
+    const mediaToRender = markersDataRef.current;
 
-      return (
-        <>
-          <style>{`
-            .media-marker {
-              transition: transform 0.1s ease, opacity 0.5s ease-in-out;
-              transform-origin: center center;
+    return (
+      <>
+        <style>{`
+          .media-marker {
+            transition: transform 0.1s ease, opacity 0.5s ease-in-out;
+            transform-origin: center center;
+            pointer-events: none;
+          }
+          .media-marker:hover {
+            transform: scale(1.2);
+            animation: none;
+          }
+          @keyframes videoPulse {
+            0%, 100% {
+              transform: scale(1);
             }
-            .media-marker:hover {
-              transform: scale(1.2);
-              animation: none;
+            50% {
+              transform: scale(1.1);
             }
-            @keyframes videoPulse {
-              0%, 100% {
-                transform: scale(1);
-              }
-              50% {
-                transform: scale(1.1);
-              }
+          }
+          .media-marker-video {
+            animation: videoPulse 2s ease-in-out infinite;
+          }
+          .media-marker-video:hover {
+            animation: none;
+          }
+        `}</style>
+        <g style={{ pointerEvents: 'none' }}>
+          {mediaToRender.map((media, originalIndex) => {
+            // Calculate positions - position off-screen if scale isn't ready
+            const hasValidScale = xAxis.scale && yAxis.scale && typeof xAxis.scale === 'function' && typeof yAxis.scale === 'function';
+            let xPos: number, yPos: number;
+
+            if (hasValidScale) {
+              xPos = xAxis.scale(media.chartTime);
+              yPos = yAxis.scale(media.depth);
+            } else {
+              // Scale not ready yet - position off-screen temporarily
+              xPos = -1000;
+              yPos = -1000;
             }
-            .media-marker-video {
-              animation: videoPulse 2s ease-in-out infinite;
+
+            // If scale exists but returns invalid values, position off-screen
+            const isValidPosition = hasValidScale && !isNaN(xPos) && !isNaN(yPos) && xPos !== undefined && yPos !== undefined && xPos >= -500;
+
+            if (hasValidScale && !isValidPosition) {
+              // Still render the marker but position it off-screen
+              xPos = -1000;
+              yPos = -1000;
             }
-            .media-marker-video:hover {
-              animation: none;
-            }
-          `}</style>
-          <g>
-            {mediaToRender.map((media, originalIndex) => {
-              // Calculate positions - position off-screen if scale isn't ready
-              const hasValidScale = xAxis.scale && yAxis.scale && typeof xAxis.scale === 'function' && typeof yAxis.scale === 'function';
-              let xPos: number, yPos: number;
 
-              if (hasValidScale) {
-                xPos = xAxis.scale(media.chartTime);
-                yPos = yAxis.scale(media.depth);
-              } else {
-                // Scale not ready yet - position off-screen temporarily
-                xPos = -1000;
-                yPos = -1000;
-              }
-
-              // If scale exists but returns invalid values, position off-screen
-              const isValidPosition = hasValidScale && !isNaN(xPos) && !isNaN(yPos) && xPos !== undefined && yPos !== undefined && xPos >= -500;
-
-              if (hasValidScale && !isValidPosition) {
-                console.warn('Media marker has invalid position:', media, { chartTime: media.chartTime, minChartTime, maxChartTime, xPos, yPos });
-                // Still render the marker but position it off-screen
-                xPos = -1000;
-                yPos = -1000;
-              }
-
-              const x = xPos - radius - containerOffset;
-              const y = yPos - radius - containerOffset;
+            const x = xPos - radius - containerOffset;
+            const y = yPos - radius - containerOffset;
 
               return (
                 <foreignObject
@@ -304,6 +306,7 @@ export function DiveChart({
                   y={y - 32}
                   width={containerSize}
                   height={containerSize}
+                  style={{ pointerEvents: 'none' }}
                 >
                   <div
                     style={{
@@ -312,6 +315,7 @@ export function DiveChart({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      pointerEvents: 'none',
                     }}
                   >
                     <div
@@ -326,49 +330,49 @@ export function DiveChart({
                         justifyContent: 'center',
                         boxSizing: 'border-box',
                         backgroundColor: 'var(--divelog-card-background)',
-                        opacity: markersVisible ? 1 : 0,
+                        opacity: 'var(--markers-opacity, 0)',
                         border: media.isVideo ? '2px solid white' : 'none',
+                        pointerEvents: 'none',
                       }}
                     >
-                      {media.isVideo ? (
-                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                          <MediaImage
-                            thumbnailUrl={media.thumbnailUrl}
-                            failedThumbnails={failedThumbnails}
-                            onThumbnailError={onThumbnailError}
-                          />
-                          {!failedThumbnails.current.has(media.thumbnailUrl) && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                inset: 0,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                pointerEvents: 'none',
-                              }}
-                            >
-                              <Play size={12} style={{ color: 'var(--divelog-foreground)', opacity: 0.5 }} />
-                            </div>
-                          )}
-                        </div>
-                      ) : media.isImage ? (
+                    {media.isVideo ? (
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                         <MediaImage
                           thumbnailUrl={media.thumbnailUrl}
-                          failedThumbnails={failedThumbnails}
-                          onThumbnailError={onThumbnailError}
+                          failedThumbnails={failedThumbnailsRef.current}
+                          onThumbnailError={onThumbnailErrorRef.current}
                         />
-                      ) : null}
-                    </div>
+                        {!failedThumbnailsRef.current.current.has(media.thumbnailUrl) && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            <Play size={12} style={{ color: 'var(--divelog-foreground)', opacity: 0.5 }} />
+                          </div>
+                        )}
+                      </div>
+                    ) : media.isImage ? (
+                      <MediaImage
+                        thumbnailUrl={media.thumbnailUrl}
+                        failedThumbnails={failedThumbnailsRef.current}
+                        onThumbnailError={onThumbnailErrorRef.current}
+                      />
+                    ) : null}
                   </div>
-                </foreignObject>
-              );
-            })}
-          </g>
-        </>
-      );
-    };
-  }, [markersVisible, minChartTime, maxChartTime, failedThumbnails, onThumbnailError]);
+                </div>
+              </foreignObject>
+            );
+          })}
+        </g>
+      </>
+    );
+  }, []);
 
   // Use refs to track diveMedia to avoid re-creating handlers
   const diveMediaRef = useRef(diveMedia);
@@ -462,11 +466,18 @@ export function DiveChart({
     e.preventDefault();
   }, []);
 
+  // Update CSS variable for marker visibility without re-rendering markers
+  useEffect(() => {
+    if (chartContainerRef.current) {
+      chartContainerRef.current.style.setProperty('--markers-opacity', markersVisible ? '1' : '0');
+    }
+  }, [markersVisible]);
+
   return (
     <div
       ref={chartContainerRef}
       className="h-64 w-full overflow-visible"
-      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', '--markers-opacity': markersVisible ? 1 : 0 } as React.CSSProperties}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
@@ -532,6 +543,7 @@ export function DiveChart({
             className="text-xs"
             reversed
           />
+          <Customized component={MediaMarkers} />
           <RechartsTooltip
             animationDuration={100}
             offset={50}
@@ -569,6 +581,8 @@ export function DiveChart({
                     borderRadius: "0.5rem",
                     padding: "0.5rem",
                     textAlign: "left",
+                    position: "relative",
+                    zIndex: 1000,
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -587,7 +601,6 @@ export function DiveChart({
               );
             }}
           />
-          <Customized component={MediaMarkers} />
           {shouldExtendBefore && (
             <Line
               data={extendedDataBefore}
