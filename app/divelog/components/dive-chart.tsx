@@ -85,49 +85,6 @@ function MediaImage({
   );
 }
 
-// Custom active dot component for hover - shows profile picture with white border
-// Simple function component - Recharts handles memoization internally
-function ActiveDot({ cx, cy }: { cx: number; cy: number }) {
-  const radius = 12;
-  const size = radius * 2;
-  return (
-    <foreignObject
-      x={cx - radius}
-      y={cy - radius}
-      width={size}
-      height={size}
-    >
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          borderRadius: '50%',
-          border: '2px solid white',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Use plain img to avoid Next/Image remount flicker during scrubbing */}
-        <img
-          src="/profile.jpg"
-          alt=""
-          width={24}
-          height={24}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            display: 'block',
-          }}
-        />
-      </div>
-    </foreignObject>
-  );
-}
-
 type ActivePoint = {
   time: number;
   depth: number;
@@ -198,6 +155,16 @@ export const DiveChart = memo(function DiveChart({
     return () => clearInterval(interval);
   }, []);
 
+  // Clean up any pending RAF updates on unmount.
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, []);
+
   // Store markers rendered state to prevent re-renders after initial render
   const markersRenderedRef = useRef(false);
   const markersDataRef = useRef(diveMedia);
@@ -226,6 +193,8 @@ export const DiveChart = memo(function DiveChart({
     // Store the XAxis scale for mouse tracking and mark scale as ready
     if (xAxis.scale && yAxis.scale && typeof xAxis.scale === 'function' && typeof yAxis.scale === 'function') {
       xAxisScaleRef.current = xAxis.scale;
+      xAxisScaleObjRef.current = xAxis.scale;
+      yAxisScaleObjRef.current = yAxis.scale;
       // Mark scale as ready using ref (will trigger state update via useEffect)
       if (!scaleReadyRef.current) {
         scaleReadyRef.current = true;
@@ -498,12 +467,12 @@ export const DiveChart = memo(function DiveChart({
       updateHoveredIndex(bestIndex);
     }
     scheduleActiveUpdate(e.clientX);
-  }, [findClosestMediaIndex, updateHoveredIndex]);
+  }, [findClosestMediaIndex, updateHoveredIndex, scheduleActiveUpdate]);
 
   const handleMouseLeave = useCallback(() => {
     updateHoveredIndex(null);
     clearActive();
-  }, [updateHoveredIndex]);
+  }, [updateHoveredIndex, clearActive]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     setIsTouching(true);
@@ -514,7 +483,7 @@ export const DiveChart = memo(function DiveChart({
       updateHoveredIndex(bestIndex);
     }
     scheduleActiveUpdate(touch.clientX);
-  }, [findClosestMediaIndex, updateHoveredIndex]);
+  }, [findClosestMediaIndex, updateHoveredIndex, scheduleActiveUpdate]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
@@ -524,19 +493,19 @@ export const DiveChart = memo(function DiveChart({
       updateHoveredIndex(bestIndex);
     }
     scheduleActiveUpdate(touch.clientX);
-  }, [findClosestMediaIndex, updateHoveredIndex]);
+  }, [findClosestMediaIndex, updateHoveredIndex, scheduleActiveUpdate]);
 
   const handleTouchEnd = useCallback(() => {
     setIsTouching(false);
     updateHoveredIndex(null);
     clearActive();
-  }, [updateHoveredIndex]);
+  }, [updateHoveredIndex, clearActive]);
 
   const handleTouchCancel = useCallback(() => {
     setIsTouching(false);
     updateHoveredIndex(null);
     clearActive();
-  }, [updateHoveredIndex]);
+  }, [updateHoveredIndex, clearActive]);
 
   // Prevent text selection and default click behavior
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -552,11 +521,25 @@ export const DiveChart = memo(function DiveChart({
     e.preventDefault();
   }, []);
 
+  const showOverlay = !!activePoint && (!isMobile || isTouching);
+  const containerW = chartContainerRef.current?.clientWidth ?? 0;
+  const containerH = chartContainerRef.current?.clientHeight ?? 0;
+  const tooltipW = 150;
+  const tooltipH = 96;
+  const pad = 12;
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const tooltipLeft = activePoint
+    ? clamp(activePoint.x - tooltipW - pad, 0, Math.max(0, containerW - tooltipW))
+    : 0;
+  const tooltipTop = activePoint
+    ? clamp(activePoint.y - tooltipH - pad, 0, Math.max(0, containerH - tooltipH))
+    : 0;
+
   return (
     <div
       ref={chartContainerRef}
       className="h-64 w-full overflow-visible"
-      style={{ userSelect: 'none', WebkitUserSelect: 'none', '--markers-opacity': 0 } as React.CSSProperties}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', '--markers-opacity': 0, position: 'relative' } as React.CSSProperties}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
@@ -661,81 +644,86 @@ export const DiveChart = memo(function DiveChart({
             isAnimationActive={false}
             animationDuration={0}
           />
-          <Customized
-            component={(props: any) => {
-              const { xAxisMap, yAxisMap, width, height } = props;
-              const xAxis = xAxisMap ? (Object.values(xAxisMap)[0] as any) : null;
-              const yAxis = yAxisMap ? (Object.values(yAxisMap)[0] as any) : null;
-              if (xAxis?.scale) {
-                xAxisScaleObjRef.current = xAxis.scale;
-              }
-              if (yAxis?.scale) {
-                yAxisScaleObjRef.current = yAxis.scale;
-              }
-
-              // Only show cursor/dot/tooltip while interacting (touch) or hovering (desktop).
-              const show = !!activePoint && (!isMobile || isTouching);
-              if (!show || !activePoint) return null;
-
-              const svgW = typeof width === 'number' ? width : 0;
-              const svgH = typeof height === 'number' ? height : 0;
-
-              const tooltipW = 150;
-              const tooltipH = 96;
-              const pad = 12;
-
-              const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-              const tx = clamp(activePoint.x - tooltipW - pad, 0, Math.max(0, svgW - tooltipW));
-              const ty = clamp(activePoint.y - tooltipH - pad, 0, Math.max(0, svgH - tooltipH));
-
-              const durationStr = formatDuration(activePoint.time);
-              const formattedTime = formatDiveTime(diveStartTime, activePoint.time);
-
-              return (
-                <g style={{ pointerEvents: 'none' }}>
-                  {/* cursor line behind dot */}
-                  <line
-                    x1={activePoint.x}
-                    x2={activePoint.x}
-                    y1={0}
-                    y2={svgH}
-                    stroke="rgba(255,255,255,0.65)"
-                    strokeWidth={1}
-                  />
-                  {/* avatar dot above cursor line */}
-                  <ActiveDot cx={activePoint.x} cy={activePoint.y} />
-                  {/* tooltip above everything */}
-                  <foreignObject x={tx} y={ty} width={tooltipW} height={tooltipH}>
-                    <div
-                      style={{
-                        backgroundColor: "var(--divelog-card-background)",
-                        border: "1px solid var(--divelog-card-border)",
-                        borderRadius: "0.5rem",
-                        padding: "0.5rem",
-                        textAlign: "left",
-                        position: "relative",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <ArrowDownFromLine size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                        <span>{activePoint.depth.toFixed(1)}m</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <Timer size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                        <span>{durationStr}</span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <Clock size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
-                        <span>{formattedTime}</span>
-                      </div>
-                    </div>
-                  </foreignObject>
-                </g>
-              );
-            }}
-          />
         </LineChart>
       </ResponsiveContainer>
+
+      {showOverlay && activePoint && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 50,
+          }}
+        >
+          {/* Cursor line behind the avatar dot */}
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.round(activePoint.x),
+              top: 0,
+              bottom: 0,
+              width: 1,
+              backgroundColor: 'rgba(255,255,255,0.65)',
+              zIndex: 10,
+            }}
+          />
+
+          {/* Avatar dot above the cursor line */}
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.round(activePoint.x - 12),
+              top: Math.round(activePoint.y - 12),
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              border: '2px solid white',
+              overflow: 'hidden',
+              boxSizing: 'border-box',
+              backgroundColor: 'transparent',
+              zIndex: 20,
+            }}
+          >
+            <img
+              src="/profile.jpg"
+              alt=""
+              width={24}
+              height={24}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+
+          {/* Tooltip above everything */}
+          <div
+            style={{
+              position: 'absolute',
+              left: Math.round(tooltipLeft),
+              top: Math.round(tooltipTop),
+              width: tooltipW,
+              zIndex: 30,
+              backgroundColor: "var(--divelog-card-background)",
+              border: "1px solid var(--divelog-card-border)",
+              borderRadius: "0.5rem",
+              padding: "0.5rem",
+              textAlign: "left",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <ArrowDownFromLine size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+              <span>{activePoint.depth.toFixed(1)}m</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Timer size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+              <span>{formatDuration(activePoint.time)}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Clock size={14} style={{ color: 'var(--divelog-foreground)', flexShrink: 0 }} />
+              <span>{formatDiveTime(diveStartTime, activePoint.time)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 })
