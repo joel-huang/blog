@@ -1,8 +1,7 @@
 "use client"
 
 import { memo, useRef, useEffect, useCallback, useState } from "react"
-import NextImage from "next/image"
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Customized } from "recharts"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Customized } from "recharts"
 import { ArrowDownFromLine, Clock, Timer, Play, Image } from "lucide-react"
 import { useIsMobile } from "@/app/divelog/hooks/use-mobile"
 
@@ -87,8 +86,7 @@ function MediaImage({
 
 // Custom active dot component for hover - shows profile picture with white border
 // Simple function component - Recharts handles memoization internally
-function ActiveDot(props: any) {
-  const { cx, cy } = props;
+function ActiveDot({ cx, cy }: { cx: number; cy: number }) {
   const radius = 12;
   const size = radius * 2;
   return (
@@ -111,21 +109,46 @@ function ActiveDot(props: any) {
           boxSizing: 'border-box',
         }}
       >
-        <NextImage
+        {/* Use plain img to avoid Next/Image remount flicker during scrubbing */}
+        <img
           src="/profile.jpg"
-          alt="Diver"
+          alt=""
           width={24}
           height={24}
           style={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            display: 'block',
           }}
-          unoptimized={true}
         />
       </div>
     </foreignObject>
   );
+}
+
+type ActivePoint = {
+  time: number;
+  depth: number;
+  x: number;
+  y: number;
+};
+
+function formatDuration(totalSeconds: number) {
+  const durationMinutes = Math.floor(totalSeconds / 60);
+  const durationSeconds = Math.floor(totalSeconds % 60);
+  return `${durationMinutes}:${durationSeconds.toString().padStart(2, '0')}`;
+}
+
+function formatDiveTime(diveStartTime: number, totalSeconds: number) {
+  const tooltipTime = new Date(diveStartTime + totalSeconds * 1000);
+  const utcHours = tooltipTime.getUTCHours();
+  const utcMinutes = tooltipTime.getUTCMinutes();
+  const timeHours = utcHours;
+  const timeMinutes = utcMinutes;
+  const ampm = timeHours >= 12 ? 'pm' : 'am';
+  const displayHours = timeHours % 12 || 12;
+  return `${displayHours}:${timeMinutes.toString().padStart(2, '0')}${ampm}`;
 }
 
 export const DiveChart = memo(function DiveChart({
