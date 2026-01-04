@@ -11,7 +11,7 @@ import { MediaFile } from "@/app/divelog/utils/mediaTypes"
 import { useIsMobile } from "@/app/divelog/hooks/use-mobile"
 import { DiveChart, ProcessedMedia } from "./dive-chart"
 import { DiveCarousel } from "./dive-carousel"
-import { ArrowDownFromLine, Timer, Moon, X, Link as LinkIcon, Check } from "lucide-react"
+import { ArrowDownFromLine, Timer, Moon, X, Copy, Check } from "lucide-react"
 import { Button } from "@/app/divelog/components/ui/button"
 
 interface DiveCardProps {
@@ -475,9 +475,15 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
 
       {/* Title */}
       <div className="flex items-center gap-2">
-        <h3 className="text-2xl font-semibold">
-          {diveSite.site}
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-2xl font-semibold">
+            {diveSite.site}
+          </h3>
+          {isNightDive && (
+            <Moon size={20} className="text-divelog-foreground" />
+          )}
+        </div>
+        <div className="flex-1" />
         <Button
           type="button"
           variant="ghost"
@@ -490,11 +496,8 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
           aria-label="Copy link to this dive"
           className="text-divelog-muted-foreground hover:text-divelog-foreground"
         >
-          <LinkIcon className="size-4" />
+          <Copy className="size-4" />
         </Button>
-        {isNightDive && (
-          <Moon size={20} className="text-divelog-foreground" />
-        )}
       </div>
       <p className="mb-4 text-sm text-divelog-muted-foreground">
         {diveSite.location}, {diveSite.country}
