@@ -11,7 +11,8 @@ import { MediaFile } from "@/app/divelog/utils/mediaTypes"
 import { useIsMobile } from "@/app/divelog/hooks/use-mobile"
 import { DiveChart, ProcessedMedia } from "./dive-chart"
 import { DiveCarousel } from "./dive-carousel"
-import { ArrowDownFromLine, Timer, Moon, X } from "lucide-react"
+import { ArrowDownFromLine, Timer, Moon, X, Link as LinkIcon, Check } from "lucide-react"
+import { Button } from "@/app/divelog/components/ui/button"
 
 interface DiveCardProps {
   dive: Dive
@@ -104,6 +105,8 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
   const [mounted, setMounted] = useState(false);
   // State for tracking which media marker is hovered
   const [hoveredMediaIndex, setHoveredMediaIndex] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
   // State for lightbox (which image/video is open)
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxMediaIndex, setLightboxMediaIndex] = useState<number | null>(null);
@@ -373,9 +376,57 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
   const timeStr = `${timeHours.toString().padStart(2, '0')}${timeMinutes.toString().padStart(2, '0')}` // HHMM
   const anchorId = `${titleKebab}-${dateStr}-${timeStr}`
 
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 1500);
+  }, []);
+
+  const copyAnchorLink = useCallback(async () => {
+    const baseUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname}`
+        : "";
+    const urlToCopy = `${baseUrl}#${anchorId}`;
+
+    try {
+      await navigator.clipboard.writeText(urlToCopy);
+      showToast("Copied link");
+      return;
+    } catch {
+      // Fallback for older browsers / denied clipboard permissions
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = urlToCopy;
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        ta.style.top = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        showToast("Copied link");
+      } catch {
+        showToast("Couldn't copy");
+      }
+    }
+  }, [anchorId, showToast]);
+
   // Set mounted state after hydration to prevent mismatches
   useEffect(() => {
     setMounted(true);
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+    };
   }, []);
 
   return (
@@ -427,6 +478,20 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
         <h3 className="text-2xl font-semibold">
           {diveSite.site}
         </h3>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void copyAnchorLink();
+          }}
+          aria-label="Copy link to this dive"
+          className="text-divelog-muted-foreground hover:text-divelog-foreground"
+        >
+          <LinkIcon className="size-4" />
+        </Button>
         {isNightDive && (
           <Moon size={20} className="text-divelog-foreground" />
         )}
@@ -560,6 +625,38 @@ export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps
 
       {/* CTA Modal */}
       <DemoDialog open={ctaModalOpen} onOpenChange={setCtaModalOpen} />
+
+      {/* Toast */}
+      {toastMessage && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 20,
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              backgroundColor: "var(--divelog-card-background)",
+              border: "1px solid var(--divelog-card-border)",
+              borderRadius: "9999px",
+              padding: "0.5rem 0.75rem",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+              color: "var(--divelog-foreground)",
+              fontSize: 14,
+            }}
+          >
+            <Check className="size-4" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
