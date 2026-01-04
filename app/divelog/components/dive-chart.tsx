@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useMemo, useEffect, useCallback } from "react"
+import { memo, useRef, useEffect, useCallback, useState } from "react"
 import NextImage from "next/image"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Customized } from "recharts"
 import { ArrowDownFromLine, Clock, Timer, Play, Image } from "lucide-react"
@@ -30,14 +30,7 @@ interface DiveChartProps {
   shouldExtendAfter: boolean
   isNightDive: boolean
   diveMedia: ProcessedMedia[]
-  hoveredMediaIndex: number | null
   setHoveredMediaIndex: (index: number | null) => void
-  markersVisible: boolean
-  setMarkersVisible: (visible: boolean) => void
-  setScaleReady: (ready: boolean) => void
-  isTouching: boolean
-  setIsTouching: (touching: boolean) => void
-  mounted: boolean
   diveStartTime: number
   failedThumbnails: React.MutableRefObject<Set<string>>
   onThumbnailError: (url: string) => void
@@ -135,7 +128,7 @@ function ActiveDot(props: any) {
   );
 }
 
-export function DiveChart({
+export const DiveChart = memo(function DiveChart({
   diveNumber,
   chartData,
   baseChartData,
@@ -147,14 +140,7 @@ export function DiveChart({
   shouldExtendAfter,
   isNightDive,
   diveMedia,
-  hoveredMediaIndex,
   setHoveredMediaIndex,
-  markersVisible,
-  setMarkersVisible,
-  setScaleReady,
-  isTouching,
-  setIsTouching,
-  mounted,
   diveStartTime,
   failedThumbnails,
   onThumbnailError
@@ -164,38 +150,23 @@ export function DiveChart({
   const xAxisScaleRef = useRef<((value: number) => number) | null>(null);
   const scaleReadyRef = useRef(false);
   const currentHoveredIndexRef = useRef<number | null>(null);
+  const [isTouching, setIsTouching] = useState(false);
 
-  // Poll for scale readiness to ensure markers render (especially important on mobile)
-  const scaleReadyStateRef = useRef(false);
+  // Reveal markers once the chart scale becomes available (without rerendering markers).
   useEffect(() => {
-    if (scaleReadyRef.current && !scaleReadyStateRef.current) {
-      scaleReadyStateRef.current = true;
-      setScaleReady(true);
-      return;
-    }
+    if (!chartContainerRef.current) return;
+    // Ensure we start hidden (handles remounts/resizes).
+    chartContainerRef.current.style.setProperty('--markers-opacity', '0');
 
-    // Poll every 100ms to check if scale becomes available
     const interval = setInterval(() => {
-      if (scaleReadyRef.current && !scaleReadyStateRef.current) {
-        scaleReadyStateRef.current = true;
-        setScaleReady(true);
+      if (scaleReadyRef.current && chartContainerRef.current) {
+        chartContainerRef.current.style.setProperty('--markers-opacity', '1');
         clearInterval(interval);
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [setScaleReady]);
-
-  // Force markers to be visible when scale becomes ready
-  useEffect(() => {
-    if (scaleReadyStateRef.current && !markersVisible) {
-      // If scale is ready but markers aren't visible yet, make them visible
-      const timer = setTimeout(() => {
-        setMarkersVisible(true);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [markersVisible, setMarkersVisible]);
+  }, []);
 
   // Store markers rendered state to prevent re-renders after initial render
   const markersRenderedRef = useRef(false);
@@ -466,18 +437,11 @@ export function DiveChart({
     e.preventDefault();
   }, []);
 
-  // Update CSS variable for marker visibility without re-rendering markers
-  useEffect(() => {
-    if (chartContainerRef.current) {
-      chartContainerRef.current.style.setProperty('--markers-opacity', markersVisible ? '1' : '0');
-    }
-  }, [markersVisible]);
-
   return (
     <div
       ref={chartContainerRef}
       className="h-64 w-full overflow-visible"
-      style={{ userSelect: 'none', WebkitUserSelect: 'none', '--markers-opacity': markersVisible ? 1 : 0 } as React.CSSProperties}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', '--markers-opacity': 0 } as React.CSSProperties}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
@@ -492,10 +456,10 @@ export function DiveChart({
         <LineChart
           data={chartData}
           margin={{
-            top: mounted && isMobile ? 50 : 60,
-            right: mounted && isMobile ? 10 : 30,
-            bottom: mounted && isMobile ? 10 : 20,
-            left: mounted && isMobile ? -25 : 0,
+            top: isMobile ? 50 : 60,
+            right: isMobile ? 10 : 30,
+            bottom: isMobile ? 10 : 20,
+            left: isMobile ? -25 : 0,
           }}
           syncId={undefined}
         >
@@ -544,13 +508,53 @@ export function DiveChart({
             reversed
           />
           <Customized component={MediaMarkers} />
+          {shouldExtendBefore && (
+            <Line
+              data={extendedDataBefore}
+              type="monotone"
+              dataKey="depth"
+              stroke="var(--divelog-muted-foreground)"
+              strokeWidth={2}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              animationDuration={0}
+            />
+          )}
+          {shouldExtendAfter && (
+            <Line
+              data={extendedDataAfter}
+              type="monotone"
+              dataKey="depth"
+              stroke="var(--divelog-muted-foreground)"
+              strokeWidth={2}
+              dot={false}
+              activeDot={false}
+              isAnimationActive={false}
+              animationDuration={0}
+            />
+          )}
+          {/* Render base line last so its active dot stays above extension lines */}
+          <Line
+            data={baseChartData}
+            type="monotone"
+            dataKey="depth"
+            stroke={isNightDive ? "var(--divelog-muted-foreground)" : "var(--divelog-highlight)"}
+            strokeWidth={2}
+            dot={false}
+            activeDot={isMobile && !isTouching ? false : ActiveDot}
+            isAnimationActive={false}
+            animationDuration={0}
+          />
+          {/* Tooltip/cursor must be last so it draws above markers + lines */}
           <RechartsTooltip
-            animationDuration={100}
+            isAnimationActive={false}
+            animationDuration={0}
             offset={50}
-            cursor={mounted && isMobile && !isTouching ? false : true}
+            cursor={isMobile && !isTouching ? false : true}
             content={({ active, payload, label }) => {
               // Hide tooltip on mobile when touch has ended (even if Recharts thinks it's active)
-              if (mounted && isMobile && !isTouching) return null;
+              if (isMobile && !isTouching) return null;
               if (!active || !payload || !payload.length) return null;
               const depth = payload[0].value as number;
               const totalSeconds = label as number;
@@ -601,45 +605,8 @@ export function DiveChart({
               );
             }}
           />
-          {shouldExtendBefore && (
-            <Line
-              data={extendedDataBefore}
-              type="monotone"
-              dataKey="depth"
-              stroke="var(--divelog-muted-foreground)"
-              strokeWidth={2}
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              animationDuration={0}
-            />
-          )}
-          <Line
-            data={baseChartData}
-            type="monotone"
-            dataKey="depth"
-            stroke={isNightDive ? "var(--divelog-muted-foreground)" : "var(--divelog-highlight)"}
-            strokeWidth={2}
-            dot={false}
-            activeDot={mounted && isMobile && !isTouching ? false : ActiveDot}
-            isAnimationActive={false}
-            animationDuration={0}
-          />
-          {shouldExtendAfter && (
-            <Line
-              data={extendedDataAfter}
-              type="monotone"
-              dataKey="depth"
-              stroke="var(--divelog-muted-foreground)"
-              strokeWidth={2}
-              dot={false}
-              activeDot={false}
-              isAnimationActive={false}
-              animationDuration={0}
-            />
-          )}
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
-}
+})

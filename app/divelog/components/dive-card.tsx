@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import NextImage from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/app/divelog/components/ui/avatar"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/app/divelog/components/ui/tooltip"
@@ -17,6 +17,8 @@ interface DiveCardProps {
   dive: Dive
   mediaFiles?: MediaFile[]
 }
+
+const EMPTY_MEDIA_FILES: MediaFile[] = []
 
 // Reusable diver avatar + name component
 function DiverAvatar({
@@ -96,18 +98,12 @@ function parseTimeToSeconds(timeStr: string): number {
   return minutes * 60 + seconds;
 }
 
-export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
+export function DiveCard({ dive, mediaFiles = EMPTY_MEDIA_FILES }: DiveCardProps) {
   const isMobile = useIsMobile()
   // Track if component has mounted to prevent hydration mismatches
   const [mounted, setMounted] = useState(false);
   // State for tracking which media marker is hovered
   const [hoveredMediaIndex, setHoveredMediaIndex] = useState<number | null>(null);
-  // State for marker visibility (fade-in animation)
-  const [markersVisible, setMarkersVisible] = useState(false);
-  // State to force re-render when scale becomes available
-  const [scaleReady, setScaleReady] = useState(false);
-  // State to track touch interaction (to hide tooltip on touch end)
-  const [isTouching, setIsTouching] = useState(false);
   // State for lightbox (which image/video is open)
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxMediaIndex, setLightboxMediaIndex] = useState<number | null>(null);
@@ -115,18 +111,22 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
   const [ctaModalOpen, setCtaModalOpen] = useState(false);
   // Track which thumbnails have failed to load (persists across re-renders)
   const failedThumbnails = useRef<Set<string>>(new Set());
+  const onThumbnailError = useCallback((url: string) => {
+    failedThumbnails.current.add(url);
+  }, []);
 
   // Get divers for this dive based on the dive site
   const diveSite = diveSites[dive.diveNumber - 1]
   const selectedDivers = diveSite.divers.map(index => divers[index])
 
-  // Parse date and time - use UTC for consistency between server and client
-  // Parse date string (format: "YYYY-MM-DD") and time string (format: "HH:MM")
-  const [year, month, day] = dive.date.split('-').map(Number)
-  const [hours, mins] = dive.time.split(':').map(Number)
-
-  // Create date using UTC for consistent calculations (prevents hydration mismatches)
-  const dateTime = new Date(Date.UTC(year, month - 1, day, hours, mins))
+  const dateTime = useMemo(() => {
+    // Parse date and time - use UTC for consistency between server and client
+    // Parse date string (format: "YYYY-MM-DD") and time string (format: "HH:MM")
+    const [year, month, day] = dive.date.split('-').map(Number)
+    const [hours, mins] = dive.time.split(':').map(Number)
+    // Create date using UTC for consistent calculations (prevents hydration mismatches)
+    return new Date(Date.UTC(year, month - 1, day, hours, mins))
+  }, [dive.date, dive.time])
 
   // Format date using UTC (consistent)
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -134,8 +134,10 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
 
   // For display, use the original time values to show correct time (dive times are stored as local time)
   // Format time directly from the original time string to avoid timezone conversion issues
-  const timeHours = hours
-  const timeMinutes = mins
+  const [timeHours, timeMinutes] = useMemo(() => {
+    const [hours, mins] = dive.time.split(':').map(Number)
+    return [hours, mins] as const
+  }, [dive.time])
   const ampm = timeHours >= 12 ? 'pm' : 'am'
   const displayHours = timeHours % 12 || 12
   const formattedTime = `${displayHours}:${timeMinutes.toString().padStart(2, '0')} ${ampm}`
@@ -143,111 +145,37 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
   // Check if it's a night dive (after 5pm) using original time values
   const isNightDive = timeHours >= 17
 
-  // Prepare chart data
-  const baseChartData = dive.samples.map(sample => ({
-    time: parseTimeToSeconds(sample.sampleTime),
-    depth: sample.depth,
-  }))
+  const {
+    baseChartData,
+    diveStartTime,
+    minDiveTime,
+    maxDiveTime,
+    shouldExtendAfter,
+    shouldExtendBefore,
+    minChartTime,
+    maxChartTime,
+    extendedDataAfter,
+    extendedDataBefore,
+    chartData,
+    diveMedia,
+  } = useMemo(() => {
+    // Prepare chart data
+    const baseChartData = dive.samples.map(sample => ({
+      time: parseTimeToSeconds(sample.sampleTime),
+      depth: sample.depth,
+    }))
 
-  // Match media files to this dive and calculate time offsets
-  // Add 10 minute offset - dive time data source is 10 mins ahead
-  // dateTime is UTC-based, so getTime() gives us a consistent timestamp
-  const diveStartTime = dateTime.getTime() - 10 * 60 * 1000
-  const minDiveTime = Math.min(...baseChartData.map(d => d.time))
-  const maxDiveTime = Math.max(...baseChartData.map(d => d.time))
-  const diveEndTime = diveStartTime + maxDiveTime * 1000
-  const startEndBuffer = 300 // 5 minutes
+    // Match media files to this dive and calculate time offsets
+    // Add 10 minute offset - dive time data source is 10 mins ahead
+    // dateTime is UTC-based, so getTime() gives us a consistent timestamp
+    const diveStartTime = dateTime.getTime() - 10 * 60 * 1000
+    const minDiveTime = Math.min(...baseChartData.map(d => d.time))
+    const maxDiveTime = Math.max(...baseChartData.map(d => d.time))
+    const diveEndTime = diveStartTime + maxDiveTime * 1000
+    const startEndBuffer = 300 // 5 minutes
 
-  // Check if there are any media files in the extended 3-minute window AFTER the dive
-  const potentialExtendedMedia = mediaFiles.filter(media => {
-    const mediaTime = media.timestamp.getTime()
-    const mediaDate = new Date(media.timestamp)
-    // Compare dates using UTC methods (both dive and media timestamps are UTC-based)
-    const sameDate = mediaDate.getUTCFullYear() === dateTime.getUTCFullYear() &&
-      mediaDate.getUTCMonth() === dateTime.getUTCMonth() &&
-      mediaDate.getUTCDate() === dateTime.getUTCDate()
-
-    if (!sameDate) return false
-
-    // Check if media is within the extended 3-minute window after dive
-    const timeOffsetSeconds = Math.max(0, (mediaTime - diveStartTime) / 1000)
-    return timeOffsetSeconds > maxDiveTime && timeOffsetSeconds <= maxDiveTime + startEndBuffer
-  })
-
-  // Check if there are any media files in the extended 3-minute window BEFORE the dive
-  const potentialPreExtendedMedia = mediaFiles.filter(media => {
-    const mediaTime = media.timestamp.getTime()
-    const mediaDate = new Date(media.timestamp)
-    // Compare dates using UTC methods (both dive and media timestamps are UTC-based)
-    const sameDate = mediaDate.getUTCFullYear() === dateTime.getUTCFullYear() &&
-      mediaDate.getUTCMonth() === dateTime.getUTCMonth() &&
-      mediaDate.getUTCDate() === dateTime.getUTCDate()
-
-    if (!sameDate) return false
-
-    // Check if media is within the extended 3-minute window before dive
-    const timeOffsetSeconds = (mediaTime - diveStartTime) / 1000
-    return timeOffsetSeconds < minDiveTime && timeOffsetSeconds >= minDiveTime - startEndBuffer
-  })
-
-  // Only extend chart if there are media files in the extended windows
-  const shouldExtendAfter = potentialExtendedMedia.length > 0
-  const shouldExtendBefore = potentialPreExtendedMedia.length > 0
-  // Always include the full dive range, extend if there's media in extended windows
-  const minChartTime = shouldExtendBefore ? minDiveTime - startEndBuffer : minDiveTime
-  const maxChartTime = shouldExtendAfter ? maxDiveTime + startEndBuffer : maxDiveTime
-
-  // Get the first and last dive points to connect the extended lines
-  const firstDivePoint = baseChartData[0]
-  const lastDivePoint = baseChartData[baseChartData.length - 1]
-
-  // Extended data for the grayscale portion AFTER (from last dive point to surface)
-  // Generate points at 5-second intervals
-  const extendedDataAfter = shouldExtendAfter ? (() => {
-    const points: Array<{ time: number; depth: number }> = [lastDivePoint]
-    const interval = 5 // 5 seconds
-    let currentTime = lastDivePoint.time + interval
-    
-    while (currentTime <= maxChartTime) {
-      points.push({ time: currentTime, depth: 0 })
-      currentTime += interval
-    }
-    
-    // Ensure we end at exactly maxChartTime
-    if (points[points.length - 1].time < maxChartTime) {
-      points.push({ time: maxChartTime, depth: 0 })
-    }
-    
-    return points
-  })() : []
-
-  // Extended data for the grayscale portion BEFORE (from surface to first dive point)
-  // Generate points at 5-second intervals
-  const extendedDataBefore = shouldExtendBefore ? (() => {
-    const points: Array<{ time: number; depth: number }> = []
-    const interval = 5 // 5 seconds
-    let currentTime = minChartTime
-    
-    while (currentTime < firstDivePoint.time) {
-      points.push({ time: currentTime, depth: 0 })
-      currentTime += interval
-    }
-    
-    // Ensure we connect to the first dive point
-    points.push(firstDivePoint)
-    
-    return points
-  })() : []
-
-  // Full chart data for domain calculation
-  const chartData = [
-    ...(shouldExtendBefore ? [{ time: minChartTime, depth: 0 }] : []),
-    ...baseChartData,
-    ...(shouldExtendAfter ? [{ time: maxChartTime, depth: 0 }] : [])
-  ]
-
-  const diveMedia = mediaFiles
-    .filter(media => {
+    // Check if there are any media files in the extended 3-minute window AFTER the dive
+    const potentialExtendedMedia = mediaFiles.filter(media => {
       const mediaTime = media.timestamp.getTime()
       const mediaDate = new Date(media.timestamp)
       // Compare dates using UTC methods (both dive and media timestamps are UTC-based)
@@ -257,71 +185,175 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
 
       if (!sameDate) return false
 
-      // Media should be within 2 hours before dive start and during/after dive (including extended 5 min window)
-      return mediaTime >= diveStartTime - 2 * 60 * 60 * 1000 && mediaTime <= diveEndTime + 30 * 60 * 1000
+      // Check if media is within the extended 3-minute window after dive
+      const timeOffsetSeconds = Math.max(0, (mediaTime - diveStartTime) / 1000)
+      return timeOffsetSeconds > maxDiveTime && timeOffsetSeconds <= maxDiveTime + startEndBuffer
     })
-    .map(media => {
-      const mediaTimestamp = media.timestamp.getTime()
-      // Calculate time offset from dive start in seconds (can be negative for pre-dive media)
-      const timeOffsetSeconds = (mediaTimestamp - diveStartTime) / 1000
 
-      // Handle media in different time ranges
-      let chartTime: number
-      let depth: number
+    // Check if there are any media files in the extended 3-minute window BEFORE the dive
+    const potentialPreExtendedMedia = mediaFiles.filter(media => {
+      const mediaTime = media.timestamp.getTime()
+      const mediaDate = new Date(media.timestamp)
+      // Compare dates using UTC methods (both dive and media timestamps are UTC-based)
+      const sameDate = mediaDate.getUTCFullYear() === dateTime.getUTCFullYear() &&
+        mediaDate.getUTCMonth() === dateTime.getUTCMonth() &&
+        mediaDate.getUTCDate() === dateTime.getUTCDate()
 
-      if (timeOffsetSeconds > maxDiveTime && timeOffsetSeconds <= maxChartTime) {
-        // Media is in the extended 3-minute window AFTER dive
-        chartTime = timeOffsetSeconds
-        // Use surface depth (0) for media after dive ends
-        depth = 0
-      } else if (timeOffsetSeconds < minDiveTime && timeOffsetSeconds >= minChartTime) {
-        // Media is in the extended 3-minute window BEFORE dive
-        chartTime = timeOffsetSeconds
-        // Use surface depth (0) for media before dive starts
-        depth = 0
-      } else if (timeOffsetSeconds >= minDiveTime && timeOffsetSeconds <= maxDiveTime) {
-        // Media is during the dive - find nearest x value in chart data
-        const nearestTime = baseChartData.reduce((prev, curr) =>
-          Math.abs(curr.time - timeOffsetSeconds) < Math.abs(prev.time - timeOffsetSeconds) ? curr : prev
-        )
-        chartTime = nearestTime.time
-        depth = nearestTime.depth
-      } else {
-        // Media is outside the extended windows - exclude it
-        // This prevents media from hours before/after from appearing on the chart
-        return null as any
+      if (!sameDate) return false
+
+      // Check if media is within the extended 3-minute window before dive
+      const timeOffsetSeconds = (mediaTime - diveStartTime) / 1000
+      return timeOffsetSeconds < minDiveTime && timeOffsetSeconds >= minDiveTime - startEndBuffer
+    })
+
+    // Only extend chart if there are media files in the extended windows
+    const shouldExtendAfter = potentialExtendedMedia.length > 0
+    const shouldExtendBefore = potentialPreExtendedMedia.length > 0
+    // Always include the full dive range, extend if there's media in extended windows
+    const minChartTime = shouldExtendBefore ? minDiveTime - startEndBuffer : minDiveTime
+    const maxChartTime = shouldExtendAfter ? maxDiveTime + startEndBuffer : maxDiveTime
+
+    // Get the first and last dive points to connect the extended lines
+    const firstDivePoint = baseChartData[0]
+    const lastDivePoint = baseChartData[baseChartData.length - 1]
+
+    // Extended data for the grayscale portion AFTER (from last dive point to surface)
+    // Generate points at 5-second intervals
+    const extendedDataAfter = shouldExtendAfter ? (() => {
+      const points: Array<{ time: number; depth: number }> = [lastDivePoint]
+      const interval = 5 // 5 seconds
+      let currentTime = lastDivePoint.time + interval
+
+      while (currentTime <= maxChartTime) {
+        points.push({ time: currentTime, depth: 0 })
+        currentTime += interval
       }
 
-      // Calculate and format time of day once
-      // diveStartTime is UTC-based, so we use UTC methods and then display as local time
-      const mediaDateTime = new Date(diveStartTime + timeOffsetSeconds * 1000);
-      // Get UTC time and display it directly (since dive times are stored as local time values)
-      const utcHours = mediaDateTime.getUTCHours();
-      const utcMinutes = mediaDateTime.getUTCMinutes();
-      // For display, treat UTC time as if it were local time (since dive times are in local timezone)
-      const timeHours = utcHours;
-      const timeMinutes = utcMinutes;
-      const ampm = timeHours >= 12 ? 'pm' : 'am';
-      const displayHours = timeHours % 12 || 12;
-      const formattedTime = `${displayHours}:${timeMinutes.toString().padStart(2, '0')}${ampm}`;
+      // Ensure we end at exactly maxChartTime
+      if (points[points.length - 1].time < maxChartTime) {
+        points.push({ time: maxChartTime, depth: 0 })
+      }
 
-      return {
-        ...media,
-        timeOffset: timeOffsetSeconds,
-        chartTime,
-        depth,
-        formattedTime,
-      } as ProcessedMedia
-    })
-    .filter((media): media is ProcessedMedia => {
-      // Filter out null values (media outside valid time windows)
-      if (!media) return false
-      // Only show media within the chart domain to ensure it renders correctly
-      // The chart domain is [minChartTime, maxChartTime], so all media must be within this range
-      // Use a small epsilon to account for floating point precision
-      const epsilon = 0.1
-      return media.chartTime >= minChartTime - epsilon && media.chartTime <= maxChartTime + epsilon
-    })
+      return points
+    })() : []
+
+    // Extended data for the grayscale portion BEFORE (from surface to first dive point)
+    // Generate points at 5-second intervals
+    const extendedDataBefore = shouldExtendBefore ? (() => {
+      const points: Array<{ time: number; depth: number }> = []
+      const interval = 5 // 5 seconds
+      let currentTime = minChartTime
+
+      while (currentTime < firstDivePoint.time) {
+        points.push({ time: currentTime, depth: 0 })
+        currentTime += interval
+      }
+
+      // Ensure we connect to the first dive point
+      points.push(firstDivePoint)
+
+      return points
+    })() : []
+
+    // Full chart data for domain calculation
+    const chartData = [
+      ...(shouldExtendBefore ? [{ time: minChartTime, depth: 0 }] : []),
+      ...baseChartData,
+      ...(shouldExtendAfter ? [{ time: maxChartTime, depth: 0 }] : [])
+    ]
+
+    const diveMedia = mediaFiles
+      .filter(media => {
+        const mediaTime = media.timestamp.getTime()
+        const mediaDate = new Date(media.timestamp)
+        // Compare dates using UTC methods (both dive and media timestamps are UTC-based)
+        const sameDate = mediaDate.getUTCFullYear() === dateTime.getUTCFullYear() &&
+          mediaDate.getUTCMonth() === dateTime.getUTCMonth() &&
+          mediaDate.getUTCDate() === dateTime.getUTCDate()
+
+        if (!sameDate) return false
+
+        // Media should be within 2 hours before dive start and during/after dive (including extended 5 min window)
+        return mediaTime >= diveStartTime - 2 * 60 * 60 * 1000 && mediaTime <= diveEndTime + 30 * 60 * 1000
+      })
+      .map(media => {
+        const mediaTimestamp = media.timestamp.getTime()
+        // Calculate time offset from dive start in seconds (can be negative for pre-dive media)
+        const timeOffsetSeconds = (mediaTimestamp - diveStartTime) / 1000
+
+        // Handle media in different time ranges
+        let chartTime: number
+        let depth: number
+
+        if (timeOffsetSeconds > maxDiveTime && timeOffsetSeconds <= maxChartTime) {
+          // Media is in the extended 3-minute window AFTER dive
+          chartTime = timeOffsetSeconds
+          // Use surface depth (0) for media after dive ends
+          depth = 0
+        } else if (timeOffsetSeconds < minDiveTime && timeOffsetSeconds >= minChartTime) {
+          // Media is in the extended 3-minute window BEFORE dive
+          chartTime = timeOffsetSeconds
+          // Use surface depth (0) for media before dive starts
+          depth = 0
+        } else if (timeOffsetSeconds >= minDiveTime && timeOffsetSeconds <= maxDiveTime) {
+          // Media is during the dive - find nearest x value in chart data
+          const nearestTime = baseChartData.reduce((prev, curr) =>
+            Math.abs(curr.time - timeOffsetSeconds) < Math.abs(prev.time - timeOffsetSeconds) ? curr : prev
+          )
+          chartTime = nearestTime.time
+          depth = nearestTime.depth
+        } else {
+          // Media is outside the extended windows - exclude it
+          // This prevents media from hours before/after from appearing on the chart
+          return null as any
+        }
+
+        // Calculate and format time of day once
+        // diveStartTime is UTC-based, so we use UTC methods and then display as local time
+        const mediaDateTime = new Date(diveStartTime + timeOffsetSeconds * 1000);
+        // Get UTC time and display it directly (since dive times are stored as local time values)
+        const utcHours = mediaDateTime.getUTCHours();
+        const utcMinutes = mediaDateTime.getUTCMinutes();
+        // For display, treat UTC time as if it were local time (since dive times are in local timezone)
+        const timeHours = utcHours;
+        const timeMinutes = utcMinutes;
+        const ampm = timeHours >= 12 ? 'pm' : 'am';
+        const displayHours = timeHours % 12 || 12;
+        const formattedTime = `${displayHours}:${timeMinutes.toString().padStart(2, '0')}${ampm}`;
+
+        return {
+          ...media,
+          timeOffset: timeOffsetSeconds,
+          chartTime,
+          depth,
+          formattedTime,
+        } as ProcessedMedia
+      })
+      .filter((media): media is ProcessedMedia => {
+        // Filter out null values (media outside valid time windows)
+        if (!media) return false
+        // Only show media within the chart domain to ensure it renders correctly
+        // The chart domain is [minChartTime, maxChartTime], so all media must be within this range
+        // Use a small epsilon to account for floating point precision
+        const epsilon = 0.1
+        return media.chartTime >= minChartTime - epsilon && media.chartTime <= maxChartTime + epsilon
+      })
+
+    return {
+      baseChartData,
+      diveStartTime,
+      minDiveTime,
+      maxDiveTime,
+      shouldExtendAfter,
+      shouldExtendBefore,
+      minChartTime,
+      maxChartTime,
+      extendedDataAfter,
+      extendedDataBefore,
+      chartData,
+      diveMedia,
+    }
+  }, [dive.samples, mediaFiles, dateTime])
 
   // Format duration for display (duration is in MM:SS format)
   const [minutes, seconds] = dive.duration.split(':').map(Number)
@@ -344,14 +376,6 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
   // Set mounted state after hydration to prevent mismatches
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  // Fade in markers after chart has rendered (only once)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setMarkersVisible(true);
-    }, 300);
-    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -437,9 +461,7 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
           className="mb-4 w-full whitespace-nowrap"
           mainDiver={selectedDivers[0]}
           failedThumbnails={failedThumbnails}
-          onThumbnailError={(url) => {
-            failedThumbnails.current.add(url);
-          }}
+          onThumbnailError={onThumbnailError}
           onThumbnailClick={(index) => {
             setLightboxMediaIndex(index);
             setLightboxOpen(true);
@@ -460,19 +482,10 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
         shouldExtendAfter={shouldExtendAfter}
         isNightDive={isNightDive}
         diveMedia={diveMedia}
-        hoveredMediaIndex={hoveredMediaIndex}
         setHoveredMediaIndex={setHoveredMediaIndex}
-        markersVisible={markersVisible}
-        setMarkersVisible={setMarkersVisible}
-        setScaleReady={setScaleReady}
-        isTouching={isTouching}
-        setIsTouching={setIsTouching}
-        mounted={mounted}
         diveStartTime={diveStartTime}
         failedThumbnails={failedThumbnails}
-        onThumbnailError={(url) => {
-          failedThumbnails.current.add(url);
-        }}
+        onThumbnailError={onThumbnailError}
       />
 
       {/* Photo Carousel - Show after chart on desktop */}
@@ -483,9 +496,7 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
           className="mt-4 w-full whitespace-nowrap"
           mainDiver={selectedDivers[0]}
           failedThumbnails={failedThumbnails}
-          onThumbnailError={(url) => {
-            failedThumbnails.current.add(url);
-          }}
+          onThumbnailError={onThumbnailError}
           onThumbnailClick={(index) => {
             setLightboxMediaIndex(index);
             setLightboxOpen(true);
