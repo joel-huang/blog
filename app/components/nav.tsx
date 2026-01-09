@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-const navItems = {
+type NavItem = {
+  name: string;
+  badge?: string;
+};
+
+const navItems: Record<string, NavItem> = {
   "/": {
     name: "about",
   },
@@ -9,6 +14,7 @@ const navItems = {
   },
   "/divelog": {
     name: "divelog",
+    badge: "New",
   },
 };
 
@@ -21,14 +27,19 @@ export function Navbar() {
           id="nav"
         >
           <div className="flex flex-row space-x-0 pr-10">
-            {Object.entries(navItems).map(([path, { name }]) => {
+            {Object.entries(navItems).map(([path, item]) => {
               return (
                 <Link
                   key={path}
                   href={path}
-                  className="transition-all hover:text-neutral-800 dark:hover:text-neutral-200 flex align-middle relative py-1 px-2 m-1"
+                  className="transition-all hover:text-foreground-highlight dark:hover:text-foreground-highlight flex align-middle relative py-1 px-2 m-1"
                 >
-                  {name}
+                  {item.name}
+                  {item.badge && (
+                    <span className="ml-1 -mt-2 h-4 px-1 flex items-center justify-center text-[0.75rem] font-medium rounded-md bg-green-500 border border-green-300">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
