@@ -54,6 +54,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <meta name="google" content="notranslate" />
+      <meta name="google-site-verification" content="XR4zQHYHGVFkRbQipXF12clDdWgUmO0bj_qYr-OdyyU" />
       <Script
         id="person-schema"
         type="application/ld+json"
