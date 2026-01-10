@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { inter } from "@/app/fonts";
 import { baseUrl } from "@/app/sitemap";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/app/providers/theme-provider";
 
 const description = "Thinking in public";
 
@@ -49,10 +50,38 @@ export default function RootLayout({
       lang="en"
       translate="no"
       className={cn("h-full w-full !cursor-default", inter.className)}
+      suppressHydrationWarning
     >
       <meta name="google" content="notranslate" />
       <body className="antialiased">
-        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const storageKey = 'theme-preference';
+                  const stored = localStorage.getItem(storageKey);
+                  let theme;
+                  
+                  if (stored && (stored === 'light' || stored === 'dark')) {
+                    theme = stored;
+                  } else {
+                    // First visit: use system preference and store it
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                    localStorage.setItem(storageKey, theme);
+                  }
+                  
+                  document.documentElement.classList.remove('light', 'dark');
+                  document.documentElement.classList.add(theme);
+                  document.documentElement.style.colorScheme = theme;
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+        <ThemeProvider storageKey="theme-preference">
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

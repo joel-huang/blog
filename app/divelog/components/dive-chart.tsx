@@ -299,42 +299,42 @@ export function DiveChart({
             const x = xPos - radius - containerOffset;
             const y = yPos - radius - containerOffset;
 
-              return (
-                <foreignObject
-                  key={`${originalIndex}-${media.blobUrl}`}
-                  x={x}
-                  y={y - 32}
-                  width={containerSize}
-                  height={containerSize}
-                  style={{ pointerEvents: 'none' }}
+            return (
+              <foreignObject
+                key={`${originalIndex}-${media.blobUrl}`}
+                x={x}
+                y={y - 32}
+                width={containerSize}
+                height={containerSize}
+                style={{ pointerEvents: 'none' }}
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                  }}
                 >
                   <div
+                    className={`media-marker ${media.isVideo ? 'media-marker-video' : ''}`}
                     style={{
-                      width: '100%',
-                      height: '100%',
+                      width: `${size}px`,
+                      height: `${size}px`,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      boxSizing: 'border-box',
+                      backgroundColor: 'var(--divelog-card-background)',
+                      opacity: 'var(--markers-opacity, 0)',
+                      border: media.isVideo ? '2px solid white' : 'none',
                       pointerEvents: 'none',
                     }}
                   >
-                    <div
-                      className={`media-marker ${media.isVideo ? 'media-marker-video' : ''}`}
-                      style={{
-                        width: `${size}px`,
-                        height: `${size}px`,
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxSizing: 'border-box',
-                        backgroundColor: 'var(--divelog-card-background)',
-                        opacity: 'var(--markers-opacity, 0)',
-                        border: media.isVideo ? '2px solid white' : 'none',
-                        pointerEvents: 'none',
-                      }}
-                    >
                     {media.isVideo ? (
                       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                         <MediaImage
@@ -576,6 +576,7 @@ export function DiveChart({
               return (
                 <div
                   style={{
+                    color: 'var(--divelog-foreground)',
                     backgroundColor: "var(--divelog-card-background)",
                     border: "1px solid var(--divelog-card-border)",
                     borderRadius: "0.5rem",

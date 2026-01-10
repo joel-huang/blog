@@ -207,17 +207,17 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
     const points: Array<{ time: number; depth: number }> = [lastDivePoint]
     const interval = 5 // 5 seconds
     let currentTime = lastDivePoint.time + interval
-    
+
     while (currentTime <= maxChartTime) {
       points.push({ time: currentTime, depth: 0 })
       currentTime += interval
     }
-    
+
     // Ensure we end at exactly maxChartTime
     if (points[points.length - 1].time < maxChartTime) {
       points.push({ time: maxChartTime, depth: 0 })
     }
-    
+
     return points
   })() : []
 
@@ -227,15 +227,15 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
     const points: Array<{ time: number; depth: number }> = []
     const interval = 5 // 5 seconds
     let currentTime = minChartTime
-    
+
     while (currentTime < firstDivePoint.time) {
       points.push({ time: currentTime, depth: 0 })
       currentTime += interval
     }
-    
+
     // Ensure we connect to the first dive point
     points.push(firstDivePoint)
-    
+
     return points
   })() : []
 
@@ -372,7 +372,7 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
             ) : selectedDivers.length > 2 ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-sm font-medium underline decoration-dotted">
+                  <span className="text-divelog-foreground text-sm font-medium underline decoration-dotted">
                     {selectedDivers.length - 1} others
                   </span>
                 </TooltipTrigger>
@@ -400,7 +400,7 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
 
       {/* Title */}
       <div className="flex items-center gap-2">
-        <h3 className="text-2xl font-semibold">
+        <h3 className="text-divelog-foreground text-2xl font-semibold">
           {diveSite.site}
         </h3>
         {isNightDive && (
@@ -418,14 +418,14 @@ export function DiveCard({ dive, mediaFiles = [] }: DiveCardProps) {
             <ArrowDownFromLine size={10} />
             <span className="text-xs">Max. Depth</span>
           </div>
-          <div className="text-lg font-semibold">{dive.maxDepth.toFixed(1)} m</div>
+          <div className="text-divelog-foreground text-lg font-semibold">{dive.maxDepth.toFixed(1)} m</div>
         </div>
         <div>
           <div className="flex items-center gap-1 text-sm text-divelog-muted-foreground">
             <Timer size={10} />
             <span className="text-xs">Duration</span>
           </div>
-          <div className="text-lg font-semibold">{durationDisplay}</div>
+          <div className="text-divelog-foreground text-lg font-semibold">{durationDisplay}</div>
         </div>
       </div>
 

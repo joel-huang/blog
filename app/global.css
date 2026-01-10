@@ -5,40 +5,38 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Color System */
+  /* Light Theme - Default */
   --color-primary: #000000;
   --color-secondary: #525252;
-  --color-foreground-highlight: rgb(250, 250, 250);
-  --color-foreground: rgb(229, 229, 229);
-  --color-foreground-muted: rgb(212, 212, 212);
-  --color-background-highlight: rgb(64, 64, 64);
-  --color-background-interesting: rgb(47, 47, 47);
-  --color-background-muted: rgb(38, 38, 38);
-  --color-background: rgb(23, 23, 23);
+  --color-foreground-highlight: rgb(23, 23, 23);
+  --color-foreground: rgb(38, 38, 38);
+  --color-foreground-muted: rgb(64, 64, 64);
+  --color-background-highlight: rgb(250, 250, 250);
+  --color-background-interesting: rgb(245, 245, 245);
+  --color-background-muted: rgb(240, 240, 240);
+  --color-background: rgb(255, 255, 255);
 
   /* Radius */
   --radius-sm: 0.25rem;
   --radius-lg: 0.5rem;
 
-  /* Elevation & Shadows */
+  /* Elevation & Shadows - Light theme */
   --elevated: 
     0px 3px 6px rgba(0, 0, 0, 0.1), 
-    0px 1px 3px rgba(0, 0, 0, 0.18), 
-    inset 0px 1px 0px rgba(255, 255, 255, 0.08), 
-    inset 0px 0px 1px rgba(255, 255, 255, 0.3);
+    0px 1px 3px rgba(0, 0, 0, 0.08);
 
-  /* Syntax Highlighting */
-  --sh-class: #D4D4D4;
-  --sh-identifier: #D4D4D4;
-  --sh-sign: #D4D4D4;
-  --sh-string: #CE9178;
-  --sh-keyword: #D4D4D4;
-  --sh-comment: #6A9955;
-  --sh-jsxliterals: #D4D4D4;
-  --sh-property: #D4D4D4;
-  --sh-entity: #D4D4D4;
+  /* Syntax Highlighting - Light theme */
+  --sh-class: #1F2937;
+  --sh-identifier: #1F2937;
+  --sh-sign: #1F2937;
+  --sh-string: #059669;
+  --sh-keyword: #7C3AED;
+  --sh-comment: #6B7280;
+  --sh-jsxliterals: #1F2937;
+  --sh-property: #1F2937;
+  --sh-entity: #1F2937;
 
-  /* Divelog */
+  /* Divelog - Always dark (no light theme) */
   --divelog-background: hsl(240 5.9% 10%);
   --divelog-foreground: hsl(240 4.8% 90.9%);
   --divelog-highlight: hsl(216, 87%, 63%);
@@ -54,36 +52,118 @@
   --divelog-card-border: hsl(240 3.7% 25.9%);
 }
 
-/* Dark mode overrides */
+/* Dark Theme - Class-based */
+.dark {
+  --color-primary: #000000;
+  --color-secondary: #525252;
+  --color-foreground-highlight: rgb(250, 250, 250);
+  --color-foreground: rgb(229, 229, 229);
+  --color-foreground-muted: rgb(212, 212, 212);
+  --color-background-highlight: rgb(64, 64, 64);
+  --color-background-interesting: rgb(47, 47, 47);
+  --color-background-muted: rgb(38, 38, 38);
+  --color-background: rgb(23, 23, 23);
+
+  /* Elevation & Shadows - Dark theme */
+  --elevated: 
+    0px 3px 6px rgba(0, 0, 0, 0.1), 
+    0px 1px 3px rgba(0, 0, 0, 0.18), 
+    inset 0px 1px 0px rgba(255, 255, 255, 0.08), 
+    inset 0px 0px 1px rgba(255, 255, 255, 0.3);
+
+  /* Syntax Highlighting - Dark theme */
+  --sh-class: #D4D4D4;
+  --sh-identifier: #D4D4D4;
+  --sh-sign: #D4D4D4;
+  --sh-string: #CE9178;
+  --sh-keyword: #D4D4D4;
+  --sh-comment: #6A9955;
+  --sh-jsxliterals: #D4D4D4;
+  --sh-property: #D4D4D4;
+  --sh-entity: #D4D4D4;
+
+  /* Divelog - Dark theme */
+  --divelog-background: hsl(240 5.9% 10%);
+  --divelog-foreground: hsl(240 4.8% 90.9%);
+  --divelog-highlight: hsl(216, 87%, 63%);
+  --divelog-primary: hsl(224.3 76.3% 48%);
+  --divelog-primary-foreground: hsl(0 0% 100%);
+  --divelog-accent: hsl(240 3.7% 15.9%);
+  --divelog-accent-foreground: hsl(240 4.8% 90.9%);
+  --divelog-border: hsl(240 3.7% 15.9%);
+  --divelog-ring: hsl(217.2 91.2% 59.8%);
+  --divelog-muted: hsl(240 3.7% 15.9%);
+  --divelog-muted-foreground: hsl(240 4.8% 75%);
+  --divelog-card-background: hsl(240 3.7% 15.9%);
+  --divelog-card-border: hsl(240 3.7% 25.9%);
+}
+
+/* Dark Theme - System preference fallback */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
+    --color-primary: #000000;
+    --color-secondary: #525252;
+    --color-foreground-highlight: rgb(250, 250, 250);
+    --color-foreground: rgb(229, 229, 229);
+    --color-foreground-muted: rgb(212, 212, 212);
+    --color-background-highlight: rgb(64, 64, 64);
+    --color-background-interesting: rgb(47, 47, 47);
+    --color-background-muted: rgb(38, 38, 38);
+    --color-background: rgb(23, 23, 23);
+
+    /* Elevation & Shadows - Dark theme */
+    --elevated: 
+      0px 3px 6px rgba(0, 0, 0, 0.1), 
+      0px 1px 3px rgba(0, 0, 0, 0.18), 
+      inset 0px 1px 0px rgba(255, 255, 255, 0.08), 
+      inset 0px 0px 1px rgba(255, 255, 255, 0.3);
+
+    /* Syntax Highlighting - Dark theme */
     --sh-class: #D4D4D4;
     --sh-identifier: #D4D4D4;
-    --sh-keyword: #D4D4D4;
+    --sh-sign: #D4D4D4;
     --sh-string: #CE9178;
-  }
+    --sh-keyword: #D4D4D4;
+    --sh-comment: #6A9955;
+    --sh-jsxliterals: #D4D4D4;
+    --sh-property: #D4D4D4;
+    --sh-entity: #D4D4D4;
 
-  html {
+  }
+}
+
+/* Dark mode specific overrides */
+.dark html {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not(.light) {
     color-scheme: dark;
   }
 
-  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  html:not(.light) .prose h1,
+  html:not(.light) .prose h2,
+  html:not(.light) .prose h3,
+  html:not(.light) .prose h4,
+  html:not(.light) .prose h5,
+  html:not(.light) .prose h6 {
     color: var(--color-foreground-highlight) !important;
   }
 
-  .prose p {
+  html:not(.light) .prose p {
     color: var(--color-foreground) !important;
   }
 
-  .prose pre {
+  html:not(.light) .prose pre {
     background-color: var(--color-background-muted) !important;
   }
 
-  .prose pre code {
+  html:not(.light) .prose pre code {
     color: var(--color-foreground) !important;
   }
 
-  .prose code {
+  html:not(.light) .prose code {
     background-color: var(--color-background-muted) !important;
     color: var(--color-foreground) !important;
   }
@@ -93,17 +173,16 @@
   html {
     min-width: var(--min-width);
     overflow-y: scroll;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   ::selection {
     background-color: var(--color-background-interesting);
     color: var(--color-foreground);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    html {
-      color-scheme: dark;
-    }
   }
 }
 
@@ -141,7 +220,7 @@
 }
 
 .prose pre {
-  background-color: var(--color-foreground-highlight);
+  background-color: var(--color-background-muted);
   border-radius: var(--radius-lg);
   overflow-x: auto;
   box-shadow: var(--elevated);
@@ -156,12 +235,12 @@
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   box-shadow: var(--elevated);
-  background-color: var(--color-foreground-highlight);
-  color: var(--color-background-muted);
+  background-color: var(--color-background-muted);
+  color: var(--color-foreground);
 }
 
 .prose pre code {
-  color: var(--color-background-muted);
+  color: var(--color-foreground);
   padding: 0;
   background-color: transparent;
   border: initial;
@@ -180,7 +259,7 @@
 .prose p {
   margin-top: 1rem;
   margin-bottom: 1rem;
-  color: var(--color-background);
+  color: var(--color-foreground);
 }
 
 .prose h1 {
@@ -190,6 +269,7 @@
   line-height: 1.2;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+  color: var(--color-foreground-highlight);
 }
 
 .prose h2 {
@@ -198,6 +278,7 @@
   letter-spacing: -0.025em;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+  color: var(--color-foreground-highlight);
 }
 
 .prose h3 {
@@ -206,6 +287,7 @@
   letter-spacing: -0.025em;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+  color: var(--color-foreground-highlight);
 }
 
 .prose h4 {
@@ -214,6 +296,7 @@
   letter-spacing: -0.025em;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
+  color: var(--color-foreground-highlight);
 }
 
 .prose strong {
@@ -276,6 +359,14 @@ table {
   --color-divelog-muted-foreground: var(--divelog-muted-foreground);
   --color-divelog-card-background: var(--divelog-card-background);
   --color-divelog-card-border: var(--divelog-card-border);
+
+  --color-background: var(--color-background);
+  --color-background-muted: var(--color-background-muted);
+  --color-background-highlight: var(--color-background-highlight);
+  --color-background-interesting: var(--color-background-interesting);
+  --color-foreground: var(--color-foreground);
+  --color-foreground-muted: var(--color-foreground-muted);
+  --color-foreground-highlight: var(--color-foreground-highlight);
 }
 
 /* Holographic Card Effect - Only when sidebar is expanded */

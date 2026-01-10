@@ -59,8 +59,8 @@ export function AllPosts({ posts, tags }: { posts: Post[]; tags: string[] }) {
         selectedTag={selectedTag}
         setSelectedTag={setSelectedTag}
       />
-      <div className="w-full flex flex-col gap-2 bg-neutral-50 dark:bg-neutral-900 rounded-lg overflow-x-auto elevated p-4 pb-6">
-        <h2 className="text-lg font-semibold tracking-tight">Articles</h2>
+      <div className="w-full flex flex-col gap-2 bg-background-muted rounded-lg overflow-x-auto elevated p-4 pb-6">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground-highlight">Articles</h2>
         {sortedPosts.map((post) => (
           <a
             key={post.slug}
@@ -68,10 +68,10 @@ export function AllPosts({ posts, tags }: { posts: Post[]; tags: string[] }) {
             href={`/blog/${post.slug}`}
           >
             <div className="grid grid-cols-3 gap-2">
-              <p className="text-neutral-600 dark:text-neutral-400">
+              <p className="text-foreground-muted">
                 {formatDate(post.metadata.publishedAt, false, isShort)}
               </p>
-              <p className="col-span-2 text-neutral-900 dark:text-neutral-200 dark:hover:text-neutral-100 tracking-tight">
+              <p className="col-span-2 text-foreground-highlight hover:text-foreground-highlight tracking-tight">
                 {post.metadata.title}
               </p>
             </div>

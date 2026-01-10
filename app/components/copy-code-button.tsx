@@ -33,7 +33,7 @@ export function CopyCodeButton({ pre, className, ...props }: CopyButtonProps) {
 
   return (
     <button
-      className="text-neutral-400 hover:text-neutral-200 cursor-pointer"
+      className="text-foreground-muted hover:text-foreground-highlight cursor-pointer"
       disabled={isCopied}
       onClick={copy}
       aria-label="Copy"

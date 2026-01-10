@@ -59,7 +59,11 @@ export function DemoDialog({ open, onOpenChange }: DemoDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Hi, this is Joel. This isn't a real app... yet!</DialogTitle>
+          <DialogTitle>
+            <span className="text-divelog-foreground">
+              Hi, this is Joel. This isn't a real app... yet!
+            </span>
+          </DialogTitle>
           <DialogDescription className="pt-4 space-y-4 text-left">
             <p>
               I built this demo to share my 2025 dives because most dive apps out there are clunky, ugly, and don't let you remember dives the way they unfold through time and depth.

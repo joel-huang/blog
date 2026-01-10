@@ -18,7 +18,7 @@ function ArrowIcon() {
 export default function Footer() {
   return (
     <footer className="mb-16">
-      <p className="mt-8 text-neutral-600 dark:text-neutral-600">
+      <p className="mt-8 text-foreground-muted">
         © {new Date().getFullYear()} Joel Huang
       </p>
     </footer>

@@ -84,7 +84,7 @@ function DialogContent({
         <div className="relative px-4 py-6 sm:p-6">
           {children}
           <DialogPrimitive.Close className="absolute right-4 top-6 sm:right-6 sm:top-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4 text-divelog-foreground" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         </div>

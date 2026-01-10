@@ -20,8 +20,8 @@ const Slider = ({
   return (
     <div className="w-full px-4 py-10">
       <ReactSlider
-        className="h-2 w-full bg-neutral-400 rounded-md"
-        thumbClassName="w-4 h-4 bg-neutral-300 hover:bg-neutral-100 outline-none rounded-full -mt-1"
+        className="h-2 w-full bg-background-muted rounded-md"
+        thumbClassName="w-4 h-4 bg-background-highlight hover:bg-background-interesting outline-none rounded-full -mt-1"
         trackClassName="track"
         markClassName="mark"
         marks={true}
