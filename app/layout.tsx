@@ -1,11 +1,12 @@
 import "@/app/global.css";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { inter } from "@/app/fonts";
 import { baseUrl } from "@/app/sitemap";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/app/providers/theme-provider";
 
-const description = "Thinking in public";
+const description = "Joel Huang - Head of AI & Product at Bifrost AI. Insights on product, business, technology, synthetic data, autonomous systems, computer vision, and robotics."
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -53,8 +54,33 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <meta name="google" content="notranslate" />
+      <Script
+        id="person-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "name": "Joel Huang",
+            "url": "https://joelhuang.dev",
+            "sameAs": [
+              "https://www.linkedin.com/in/joel-huang",
+              "https://x.com/joelhuang",
+              "https://github.com/joel-huang"
+            ],
+            "jobTitle": "Head of AI & Product",
+            "worksFor": {
+              "@type": "Organization",
+              "name": "Bifrost AI",
+              "url": "https://bifrost.ai"
+            }
+          })
+        }}
+      />
       <body className="antialiased">
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
