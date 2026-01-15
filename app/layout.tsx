@@ -6,7 +6,7 @@ import { baseUrl } from "@/app/sitemap";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/app/providers/theme-provider";
 
-const description = "Joel Huang - Head of AI & Product at Bifrost AI. Insights on product, business, technology, synthetic data, autonomous systems, computer vision, and robotics."
+const description = "Joel Huang is the Head of AI at Bifrost. He writes about product, startups, technology, synthetic data, autonomous systems, computer vision, and robotics."
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
