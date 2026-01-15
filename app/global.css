@@ -369,7 +369,13 @@ table {
   --color-foreground-highlight: var(--color-foreground-highlight);
 }
 
-/* Holographic Card Effect - Only when sidebar is expanded */
+/* Prevent margin-right from scroll lock */
+body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Holographic Card Effect - Only when sidebar is expanded (for divelog ONLY - not Bio) */
 [data-state="expanded"] .holo-card-wrapper {
   position: relative;
   width: 100%;
@@ -461,10 +467,40 @@ table {
   z-index: 3;
 }
 
-/* Prevent margin-right from scroll lock */
-body[data-scroll-locked] {
-  margin-right: 0 !important;
-  padding-right: 0 !important;
+/* Holo Card for Bio ONLY - not divelog. Increase bio holo card height on mobile */
+@media (max-width: 640px) {
+  [data-bio-holo-card] {
+    min-height: 500px !important;
+    aspect-ratio: 3/4 !important;
+  }
+}
+
+/* Enable touch interactions for bio holographic sticker on mobile */
+.touch-enabled,
+[data-hologram-root],
+[data-hologram-scene],
+[data-hologram-card] {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  [data-hologram-card]:active {
+    transform-style: preserve-3d;
+  }
+  
+  /* Make touch interactions more responsive on mobile for bio holographic sticker */
+  [data-hologram-root],
+  [data-hologram-scene],
+  [data-hologram-card] {
+    cursor: grab;
+  }
+  
+  [data-hologram-card]:active {
+    cursor: grabbing;
+  }
 }
 
 /* Fix dialog sizing on orientation change - use dynamic viewport units when supported */

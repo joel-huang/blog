@@ -80,6 +80,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@18.2.0)
+      holographic-sticker:
+        specifier: ^1.0.4
+        version: 1.0.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       lucide-react:
         specifier: ^0.475.0
         version: 0.475.0(react@18.2.0)
@@ -1482,6 +1485,12 @@ packages:
   hex-rgb@4.3.0:
     resolution: {integrity: sha512-Ox1pJVrDCyGHMG9CFg1tmrRUMRPRsAWYc/PinY0XzJU4K7y7vjNoLKIQ7BR5UJMCxNN8EM1MNDmHWA/B3aZUuw==}
     engines: {node: '>=6'}
+
+  holographic-sticker@1.0.4:
+    resolution: {integrity: sha512-Argh6oN0Tb+7cqUDyRYYZiZxDDrya59FuHJhmJSUha7XAsANM2YXITYNkkkpnoFShe6OrTNm5XBkZ0Dm60cCvA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   iconv-lite@0.6.3:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
@@ -3565,6 +3574,11 @@ snapshots:
       space-separated-tokens: 2.0.2
 
   hex-rgb@4.3.0: {}
+
+  holographic-sticker@1.0.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
+    dependencies:
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
 
   iconv-lite@0.6.3:
     dependencies:

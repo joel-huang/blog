@@ -32,6 +32,7 @@
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
     "embla-carousel-react": "^8.6.0",
+    "holographic-sticker": "^1.0.4",
     "lucide-react": "^0.475.0",
     "next": "^14.2.35",
     "next-mdx-remote": "^4.4.1",

@@ -14,6 +14,7 @@ import Timeline from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/tim
 import HoverImagePreview from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/hover-image-preview";
 import CraiyonExamples from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/craiyon";
 import Embeddings from "@/app/blog/posts/creating-synthetic-data-contextual-placement/embeddings";
+import { BioHoloCard } from "@/app/components/bio-holo-card";
 
 const TimingChart = dynamic(
   () => import("@/app/blog/posts/blazing-fast-pairwise-cosine-similarity/chart")
