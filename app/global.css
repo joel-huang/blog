@@ -341,6 +341,18 @@ table {
   white-space: nowrap;
 }
 
+.mdx-table {
+  display: table !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  white-space: normal !important;
+}
+
+.mdx-table th:not(:last-child),
+.mdx-table td:not(:last-child) {
+  white-space: nowrap !important;
+}
+
 .title {
   text-wrap: balance;
 }
@@ -510,4 +522,12 @@ body[data-scroll-locked] {
       width: calc(100dvw - 2rem);
     }
   }
+}
+
+/* Pixelated image rendering - disable antialiasing and smoothing */
+.pixelated-image {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
 }

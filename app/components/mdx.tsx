@@ -20,25 +20,41 @@ const TimingChart = dynamic(
   () => import("@/app/blog/posts/blazing-fast-pairwise-cosine-similarity/chart")
 );
 
+const SizeDistributionChart = dynamic(
+  () => import("@/app/blog/posts/small-object-detection/chart")
+);
+
+const DetectionCliffChart = dynamic(
+  () => import("@/app/blog/posts/small-object-detection/detection-cliff-chart")
+);
+
+const FeatureMapGrid = dynamic(
+  () => import("@/app/blog/posts/small-object-detection/feature-map-grid")
+);
+
 function Table({ data }) {
   let headers = data.headers.map((header, index) => (
-    <th key={index}>{header}</th>
+    <th key={index} className="px-3 py-2">{header}</th>
   ));
   let rows = data.rows.map((row, index) => (
     <tr key={index}>
       {row.map((cell, cellIndex) => (
-        <td key={cellIndex}>{cell}</td>
+        <td key={cellIndex} className="px-3 py-2">{cell}</td>
       ))}
     </tr>
   ));
 
   return (
-    <table>
-      <thead>
-        <tr>{headers}</tr>
-      </thead>
-      <tbody>{rows}</tbody>
-    </table>
+    <div className="w-full flex flex-col gap-4 overflow-x-auto">
+      <table
+        className="mdx-table w-full text-sm rounded-lg overflow-hidden bg-background-muted elevated table-auto"
+      >
+        <thead className="text-left border-b border-background-interesting">
+          <tr>{headers}</tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </div>
   );
 }
 
@@ -100,6 +116,30 @@ function slugify(str: { toString: () => string }) {
     .replace(/\-\-+/g, "-"); // Replace multiple - with single -
 }
 
+function Keywords({ children, keywords }) {
+  // Support both children and keywords prop for flexibility
+  const keywordsText = keywords || children;
+
+  return (
+    <span
+      aria-hidden="false"
+      style={{
+        position: 'absolute',
+        width: '1px',
+        height: '1px',
+        padding: 0,
+        margin: '-1px',
+        overflow: 'hidden',
+        clip: 'rect(0, 0, 0, 0)',
+        whiteSpace: 'nowrap',
+        borderWidth: 0,
+      }}
+    >
+      {keywordsText}
+    </span>
+  );
+}
+
 function createHeading(level) {
   const Heading = ({ children }) => {
     let slug = slugify(children);
@@ -123,7 +163,11 @@ let components = {
   code: Code,
   pre: Pre,
   Table,
+  Keywords,
   TimingChart,
+  SizeDistributionChart,
+  DetectionCliffChart,
+  FeatureMapGrid,
   Timeline,
   CraiyonExamples,
   HoverImagePreview,

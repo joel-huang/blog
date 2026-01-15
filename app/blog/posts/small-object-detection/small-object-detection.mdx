@@ -1,0 +1,115 @@
+---
+title: 'Small object detection'
+publishedAt: '2026-01-15'
+tags: [ai]
+---
+
+<Keywords>
+Small object detection, tiny object detection, very small object detection, pixel-level object detection, low-resolution object detection, YOLO small object detection, YOLOv8 small objects, YOLOv11 detection limits, feature pyramid networks FPN, detection scale falloff, object size taxonomy, COCO small object definition, sub-32 pixel detection, 10–15 pixel detection limit, anchor-based detection limits, anchor-free detectors, perception model failure modes, aerial imagery object detection, drone detection datasets, VisDrone small objects, surveillance video object detection, autonomous perception systems, high-resolution inference, input resolution scaling, tiled inference SAHI, image tiling for object detection, detection recall vs object size, detection performance cliffs, feature map resolution, multi-scale feature maps, CNN downsampling effects, information-theoretic limits of vision, pixel information limits, model recall degradation, inference resolution tradeoffs, VRAM scaling for detection, real-time detection constraints, active vision and zoom, optical zoom vs digital zoom, active gaze control, long-range object detection, small target detection benchmarks, perception system design tradeoffs, practical limits of deep learning vision
+</Keywords>
+
+At Bifrost, I've had the pleasure of advising some of the world's most ambitious autonomy teams on training perception models. But a pattern I still see repeatedly: teams trying to detect objects just a few pixels wide, and failing miserably.
+
+The problem is that as objects get smaller in pixel size, detection becomes exponentially harder. It's a natural law governed by model architecture. The feature pyramids that make modern detectors fast also make them blind to small objects.
+
+Below, I sketch out (with data) a general approach to determine when detection ability generally falls off, and suggest what you can actually do about it.
+
+## A finer-grained size taxonomy
+
+The COCO format is old, but still widely referred to. It says objects with area below 32^2 (1024) pixels are "small". I think this is too coarse to be useful, because it doesn't help you or I debug when something goes wrong.
+
+Instead, you should propose a more debuggable size taxonomy based on meaningful limits (for simplicity in this article, I'll describe this using *object width*, but you could define this as *smallest edge* or whatever for more rigor):
+
+<Table
+  data={{
+    headers: ["Name", "Object width", "Pixel area", "Meaning"],
+    rows: [
+      ["Insufficient", "1-4 px", "1-16", "Too small for any detector"],
+      ["Very Tiny", "5-9 px", "25-81", "Sub-anchor territory"],
+      ["Tiny", "10-15 px", "100-225", "Smallest meaningful detection range"],
+      ["Very Small", "16-23 px", "256-529", "Near smallest YOLO anchors"],
+      ["Small", "24-31 px", "576-961", "Approaching COCO \"small\" threshold"],
+      ["Medium Small", "32-47 px", "1024-2209", "COCO \"small\" transition zone"],
+      ["Medium", "48-95 px", "2304-9025", "COCO \"medium\" range"],
+      ["Medium Large", "96-199 px", "9216-39601", "COCO \"large\" threshold"],
+      ["Large", "200+ px", "40000+", "No detection challenges expected with proper training"]
+    ]
+  }}
+/>
+
+The category names are deliberately blunt. "Insufficient" is not a challenge to overcome with better training, but an acknowledgement about information content. For real world applications, 1-4 pixels in any dimension is simply not enough information for decision-making layers to trigger.
+
+## What is *too small*?
+
+I'll illustrate the smallness of real annotations with the VisDrone 2019 validation set: drone detection of ten object classes, with 39K annotated objects across 548 images (most of which are ~700-1K pixels wide).
+
+Drone footage is nice because identical object classes appear at varying sizes by altitude and distance. The dataset's size distribution skews heavily toward small objects:
+
+<SizeDistributionChart />
+
+Each bar represents a meaningful size range (again here based on *object width* for simplicity), the width of the box drawn by a human labeler around each object. The majority of annotations fall below 32 pixels wide, which is not uncommon in aerial imagery, surveillance footage, and autonomous perception where camera-to-subject distance is significant.
+
+## The Detection Falloff
+
+You can estimate a size threshold for the model (white dashed line), the region below which model performance begins to aggressively taper toward zero. Understanding where this falloff occurs is critical to setting your teams up for success (and setting realistic expectations for your boss).
+
+<DetectionCliffChart />
+
+The chart shows recall by annotated object size for both YOLOv8 and YOLOv11 across all model variants (n/s/m/l/x). Here, I've set the key threshold to watch as **recall falling below 25%** (≈ missing more than 75% of objects).
+
+At 640px inference, smaller models (nano, small) hit this 25% threshold at medium-small (min. 32px), while medium through xlarge can somewhat deal with 16px. That's pretty bad.
+
+At 1024px inference, we trade off compute efficiency to gain pixels through interpolation. This lowers our threshold down (good) to the 10-15px range for the larger models. Whether that's worth it is a question your team will have to decide.
+
+Some more observations:
+
+- **The absolute minimum is still around 10-15px**, using the biggest models. Below this threshold, detections become unreliable across all model sizes. Performance doesn't drop to zero immediately, but it becomes too inconsistent for production use.
+
+- **The falloff is gradual, not steep.** This makes it difficult to select a hard cutoff. There's no clean line where detection "works" above and "fails" below. Instead, recall degrades progressively. This was surprising to me - I expected a cliff.
+
+- **Don't plan on detecting "Insufficient" and "Very Tiny".** Objects below 10 pixels show terrible recall regardless of model.
+
+## Why detection fails
+
+Understanding the failure mode is essential for evaluating interventions.
+
+YOLO and similar architectures use feature pyramid networks (FPN) that progressively downsample the input image through convolutional layers. A 640×640 input may become 320×320, then 160×160, 80×80, 40×40, and 20×20 at successive stages. Detection heads operate on the upsampled fusion of these multi-scale feature maps.
+
+In the following table, I'll show how small feature maps can get, even for the largest models (below is YOLOv8x):
+
+<FeatureMapGrid />
+
+You start to see why anything below "tiny" is basically almost guessing. This is not something more training, or better data can solve. It's an architectural constraint for any given model.
+
+## Interventions
+
+Given these constraints, I think practitioners have three general options. Each involves tradeoffs that should be evaluated against your specific requirements.
+
+#### 1. Increase Input Resolution
+
+Doubling input resolution from 640 to 1280 effectively doubles the pixel width of every object in the feature maps. A 16-pixel object becomes equivalent to a 32-pixel object. If upscaling, you gain interpolated pixels, and if downscaling, you lose real pixels. Anyhow, at least you move from the falloff zone into the reliable detection range.
+
+**Tradeoffs:**
+- VRAM scales quadratically. A 4x increase in pixel count can require 4x the memory.
+- Inference latency increases proportionally.
+- Training time extends.
+
+**When to do:** I think teams should seriously consider maxing out input resolution where possible, especially when you have compute headroom and objects fall in the 16–31 pixel range where you can take hits to FPS and minimize the detector's falloff threshold.
+
+#### 2. Tile-Based Inference
+
+Slicing Aided Hyper Inference (SAHI) divides large images into overlapping patches, runs detection on each patch, then merges results with non-maximum suppression.
+
+**Tradeoffs:**
+- More work to tune overlap etc. and adds pipeline complexity.
+- Inference time scales linearly with tile count, but memory per forward pass remains bounded.
+
+**When to do:** When you can afford to make decisions over seconds instead of milliseconds. When source imagery is high-resolution (2000+ px) and you need to preserve detail without the VRAM cost of processing the full image at native resolution.
+
+#### 3. Zoom In
+
+If you can't change the camera, make it zoom in: either optical zoom (capturing more pixels per object) or digital zoom (cropping and interpolating a region of interest).
+
+Optical zoom is preferable, since it captures actual photons rather than hallucinating pixels through interpolation. Many perception stacks implement active gaze control, where a wide-angle camera identifies regions of interest and a narrow-angle camera zooms in for detailed classification.
+
+**When to do:** When mission-critical objects are genuinely in the "insufficient" to "very tiny" range (less than 10px) and no amount of ML workflow grinding will help. The physics require more pixels at capture time.
