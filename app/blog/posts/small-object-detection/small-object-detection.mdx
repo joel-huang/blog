@@ -8,6 +8,15 @@ tags: [ai]
 Small object detection, tiny object detection, very small object detection, pixel-level object detection, low-resolution object detection, YOLO small object detection, YOLOv8 small objects, YOLOv11 detection limits, feature pyramid networks FPN, detection scale falloff, object size taxonomy, COCO small object definition, sub-32 pixel detection, 10–15 pixel detection limit, anchor-based detection limits, anchor-free detectors, perception model failure modes, aerial imagery object detection, drone detection datasets, VisDrone small objects, surveillance video object detection, autonomous perception systems, high-resolution inference, input resolution scaling, tiled inference SAHI, image tiling for object detection, detection recall vs object size, detection performance cliffs, feature map resolution, multi-scale feature maps, CNN downsampling effects, information-theoretic limits of vision, pixel information limits, model recall degradation, inference resolution tradeoffs, VRAM scaling for detection, real-time detection constraints, active vision and zoom, optical zoom vs digital zoom, active gaze control, long-range object detection, small target detection benchmarks, perception system design tradeoffs, practical limits of deep learning vision
 </Keywords>
 
+<SummaryCard>
+
+- Small object detection has a hard failure cliff driven by architecture, not training effort
+- Below ~10-15 pixels, recall collapses across modern detectors regardless of model size
+- Feature pyramid downsampling destroys spatial signal for tiny objects early
+- You must make object size an explicit design constraint and plan for it
+
+</SummaryCard>
+
 At Bifrost, I've had the pleasure of advising some of the world's most ambitious autonomy teams on training perception models. But a pattern I still see repeatedly: teams trying to detect objects just a few pixels wide, and failing miserably.
 
 The problem is that as objects get smaller in pixel size, detection becomes exponentially harder. It's a natural law governed by model architecture. The feature pyramids that make modern detectors fast also make them blind to small objects.
