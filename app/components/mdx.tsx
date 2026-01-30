@@ -15,6 +15,7 @@ import HoverImagePreview from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle
 import CraiyonExamples from "@/app/blog/posts/the-golden-hour-of-craiyon-dalle-mini/craiyon";
 import Embeddings from "@/app/blog/posts/creating-synthetic-data-contextual-placement/embeddings";
 import { BioHoloCard } from "@/app/components/bio-holo-card";
+import { SummaryCard } from "@/app/components/summary-card";
 
 const TimingChart = dynamic(
   () => import("@/app/blog/posts/blazing-fast-pairwise-cosine-similarity/chart")
@@ -172,6 +173,7 @@ let components = {
   CraiyonExamples,
   HoverImagePreview,
   Embeddings,
+  SummaryCard,
 };
 
 export function CustomMDX(props) {
