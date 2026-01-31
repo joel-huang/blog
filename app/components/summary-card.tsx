@@ -81,8 +81,6 @@ export function SummaryCard({ children, className }: SummaryCardProps) {
     }
   };
 
-  const watermark = `Ref: ${window.location.href}`;
-
   const copy = async () => {
     const root = contentRef.current;
     const text = root
@@ -92,6 +90,9 @@ export function SummaryCard({ children, className }: SummaryCardProps) {
           .trim()
       : "";
     if (!text) return;
+    const appBaseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
+    const watermark = `Ref: ${appBaseUrl}${window.location.pathname}`;
     await navigator.clipboard.writeText(`${watermark}\n\n${text}`);
     setCopied(true);
     if (resetTimeoutRef.current) {
