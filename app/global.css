@@ -16,6 +16,10 @@
   --color-background-muted: rgb(240, 240, 240);
   --color-background: rgb(255, 255, 255);
 
+  --color-success: #67C23A;
+  --color-warning: #E6A23C;
+  --color-danger: #F56C6C;
+
   /* Radius */
   --radius-sm: 0.25rem;
   --radius-lg: 0.5rem;
@@ -64,6 +68,10 @@
   --color-background-muted: rgb(38, 38, 38);
   --color-background: rgb(23, 23, 23);
 
+  --color-success: #67C23A;
+  --color-warning: #E6A23C;
+  --color-danger: #F56C6C;
+
   /* Elevation & Shadows - Dark theme */
   --elevated: 
     0px 3px 6px rgba(0, 0, 0, 0.1), 
@@ -111,6 +119,10 @@
     --color-background-muted: rgb(38, 38, 38);
     --color-background: rgb(23, 23, 23);
 
+    --color-success: #67C23A;
+    --color-warning: #E6A23C;
+    --color-danger: #F56C6C;
+    
     /* Elevation & Shadows - Dark theme */
     --elevated: 
       0px 3px 6px rgba(0, 0, 0, 0.1), 
@@ -379,6 +391,9 @@ table {
   --color-foreground: var(--color-foreground);
   --color-foreground-muted: var(--color-foreground-muted);
   --color-foreground-highlight: var(--color-foreground-highlight);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
 }
 
 /* Prevent margin-right from scroll lock */
@@ -530,4 +545,10 @@ body[data-scroll-locked] {
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   -ms-interpolation-mode: nearest-neighbor;
+}
+
+ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

@@ -2,6 +2,7 @@
 export type PostMetadata = {
   title: string;
   publishedAt: string;
+  lastUpdated?: string;
   summary: string;
   tags?: string[];
   image?: string;

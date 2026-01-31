@@ -1,12 +1,22 @@
 ---
 title: 'Small object detection'
 publishedAt: '2026-01-15'
+lastUpdated: '2026-01-31'
 tags: [ai]
 ---
 
 <Keywords>
 Small object detection, tiny object detection, very small object detection, pixel-level object detection, low-resolution object detection, YOLO small object detection, YOLOv8 small objects, YOLOv11 detection limits, feature pyramid networks FPN, detection scale falloff, object size taxonomy, COCO small object definition, sub-32 pixel detection, 10–15 pixel detection limit, anchor-based detection limits, anchor-free detectors, perception model failure modes, aerial imagery object detection, drone detection datasets, VisDrone small objects, surveillance video object detection, autonomous perception systems, high-resolution inference, input resolution scaling, tiled inference SAHI, image tiling for object detection, detection recall vs object size, detection performance cliffs, feature map resolution, multi-scale feature maps, CNN downsampling effects, information-theoretic limits of vision, pixel information limits, model recall degradation, inference resolution tradeoffs, VRAM scaling for detection, real-time detection constraints, active vision and zoom, optical zoom vs digital zoom, active gaze control, long-range object detection, small target detection benchmarks, perception system design tradeoffs, practical limits of deep learning vision
 </Keywords>
+
+<SummaryCard>
+
+- Small object detection has a hard failure cliff driven by architecture, not training effort
+- Below ~10-15 pixels, recall collapses across modern detectors regardless of model size
+- Feature pyramid downsampling destroys spatial signal for tiny objects early
+- You must make object size an explicit design constraint and plan for it
+
+</SummaryCard>
 
 At Bifrost, I've had the pleasure of advising some of the world's most ambitious autonomy teams on training perception models. But a pattern I still see repeatedly: teams trying to detect objects just a few pixels wide, and failing miserably.
 
@@ -64,37 +74,45 @@ At 1024px inference, we trade off compute efficiency to gain pixels through inte
 Some more observations:
 
 - **The absolute minimum is still around 10-15px**, using the biggest models. Below this threshold, detections become unreliable across all model sizes. Performance doesn't drop to zero immediately, but it becomes too inconsistent for production use.
-
 - **The falloff is gradual, not steep.** This makes it difficult to select a hard cutoff. There's no clean line where detection "works" above and "fails" below. Instead, recall degrades progressively. This was surprising to me - I expected a cliff.
-
 - **Don't plan on detecting "Insufficient" and "Very Tiny".** Objects below 10 pixels show terrible recall regardless of model.
 
 ## Why detection fails
 
-Understanding the failure mode is essential for evaluating interventions.
-
-YOLO and similar architectures use feature pyramid networks (FPN) that progressively downsample the input image through convolutional layers. A 640×640 input may become 320×320, then 160×160, 80×80, 40×40, and 20×20 at successive stages. Detection heads operate on the upsampled fusion of these multi-scale feature maps.
-
-In the following table, I'll show how small feature maps can get, even for the largest models (below is YOLOv8x):
+In the following table, I'll show how small feature maps can get, even for the largest models (below is YOLOv8xm, showing original size of annotation (before resizing), receptive field after backbone, receptive field after FPN):
 
 <FeatureMapGrid />
 
-You start to see why anything below "tiny" is basically almost guessing. This is not something more training, or better data can solve. It's an architectural constraint for any given model.
+
+The very features that gives deep architectures their efficiency also cause small input features to be lost as representations become increasingly coarse:
+
+- As images pass through a CNN backbone, repeated down-sampling (strided convs, pooling) progressively reduces spatial detail. Small objects occupy very few pixels at the input, and after several down-sampling stages their signal can collapse into indistinct blobs in deep layers.
+- The Feature Pyramid Networks (FPN) in detectors like YOLO mitigate this by upsampling and combining deep and shallow feature maps, but the fusion itself cannot restore lost information. The high-level features that are propagated downward tend to contain broad semantic context, not new fine-grained signals for tiny objects.
+
+In practice, this means small objects have feature representations that are extremely weak relative to global signal and background noise, so detection heads tend not to trigger as easily.
+
+Even if they do, small objects have low tolerance for localization error because a slight shift can dramatically change overlap metrics like IoU. Box/IoU losses dominate on small boxes due to the high relative error, so models prefer to learn easy, large objects over risking false positive errors.
 
 ## Interventions
 
 Given these constraints, I think practitioners have three general options. Each involves tradeoffs that should be evaluated against your specific requirements.
 
-#### 1. Increase Input Resolution
+#### 1. Increase input resolution
 
-Doubling input resolution from 640 to 1280 effectively doubles the pixel width of every object in the feature maps. A 16-pixel object becomes equivalent to a 32-pixel object. If upscaling, you gain interpolated pixels, and if downscaling, you lose real pixels. Anyhow, at least you move from the falloff zone into the reliable detection range.
+Doubling input resolution from 640 to 1280 effectively doubles the pixel width of every object in the feature maps. A 16-pixel object becomes equivalent to a 32-pixel object.
+
+If you can't change the camera, make it zoom in: either optical zoom (capturing more pixels per object) or digital zoom (cropping and interpolating a region of interest).
+
+Optical zoom is preferable, since it captures actual photons rather than hallucinating pixels through interpolation. Many perception stacks implement active gaze control, where a wide-angle camera identifies regions of interest and a narrow-angle camera zooms in for detailed classification.
+
+Digital zoom or simply upscaling/resizing the image gains us interpolated pixels, which at least moves us from the falloff zone into the range where detection is hard, but not impossible.
 
 **Tradeoffs:**
 - VRAM scales quadratically. A 4x increase in pixel count can require 4x the memory.
 - Inference latency increases proportionally.
 - Training time extends.
 
-**When to do:** I think teams should seriously consider maxing out input resolution where possible, especially when you have compute headroom and objects fall in the 16–31 pixel range where you can take hits to FPS and minimize the detector's falloff threshold.
+**When to do:** I think teams should seriously consider maxing out input resolution where possible, especially when you have compute headroom and objects fall in the 16–31 pixel range where you can take hits to FPS and minimize the detector's falloff threshold.  When mission-critical objects are genuinely in the "insufficient" to "very tiny" range (less than 10px), no amount of hyperparameter grinding will help. The models require more pixels at input.
 
 #### 2. Tile-Based Inference
 
@@ -106,10 +124,24 @@ Slicing Aided Hyper Inference (SAHI) divides large images into overlapping patch
 
 **When to do:** When you can afford to make decisions over seconds instead of milliseconds. When source imagery is high-resolution (2000+ px) and you need to preserve detail without the VRAM cost of processing the full image at native resolution.
 
-#### 3. Zoom In
+#### 3. Better models and training
 
-If you can't change the camera, make it zoom in: either optical zoom (capturing more pixels per object) or digital zoom (cropping and interpolating a region of interest).
+For research-oriented teams, small object detection can be improved by focusing on how models encode and preserve small object features.
 
-Optical zoom is preferable, since it captures actual photons rather than hallucinating pixels through interpolation. Many perception stacks implement active gaze control, where a wide-angle camera identifies regions of interest and a narrow-angle camera zooms in for detailed classification.
+**Ideas for better models**:
+- Preserve high resolution features early in the network so tiny objects remain visible through deep layers.
+- Fuse multi-scale information carefully so small object signals are not lost among larger objects.
+- Use attention or weighting to highlight weak small object signals and reduce background noise.
+- Include surrounding context to help classify or localize tiny instances.
+- Restore lost detail through upsampling or targeted feature enhancement.
 
-**When to do:** When mission-critical objects are genuinely in the "insufficient" to "very tiny" range (less than 10px) and no amount of ML workflow grinding will help. The physics require more pixels at capture time.
+**Ideas for better training**:
+- Adjust label assignment so tiny objects are properly represented, for example by using the object center rather than overlap alone.
+- Sufficient representation in training data **assuming** detection is not impossible due to architectural constraints.
+- Losses or training schedules that prevent tiny objects from dominating or being ignored help training converge.
+
+**Tradeoffs**:
+- You'll trade off cycles iterating on low-hanging fruits (e.g. patching out known failure cases) for riskier experimentation that may not succeed.
+- May increase compute and memory requirements.
+
+**When to do it**: Only pursue if your team has the budget, charter, and horizon to experiment without blocking deployment.

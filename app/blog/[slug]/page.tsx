@@ -20,6 +20,7 @@ export function generateMetadata({ params }) {
   let {
     title,
     publishedAt: publishedTime,
+    lastUpdated,
     summary: description,
     image,
   } = post.metadata;
@@ -34,6 +35,7 @@ export function generateMetadata({ params }) {
       type: "article",
       siteName: "joelhuang.dev",
       publishedTime,
+      modifiedTime: lastUpdated,
       url: `${baseUrl}/blog/${post.slug}`,
       images: [
         {
@@ -68,7 +70,8 @@ export default function Blog({ params }) {
             "@type": "BlogPosting",
             headline: post.metadata.title,
             datePublished: post.metadata.publishedAt,
-            dateModified: post.metadata.publishedAt,
+            dateModified:
+              post.metadata.lastUpdated ?? post.metadata.publishedAt,
             description: post.metadata.summary,
             image: `/api/og?title=${encodeURIComponent(post.metadata.title)}`,
             url: `${baseUrl}/blog/${post.slug}`,
@@ -82,10 +85,15 @@ export default function Blog({ params }) {
       <h1 className="title font-semibold text-2xl tracking-tighter">
         {post.metadata.title}
       </h1>
-      <div className="flex justify-between items-center mt-2 mb-8 text-sm">
+      <div className="mt-2 mb-8 text-sm">
         <p className="text-sm text-foreground-muted">
           {formatDate(post.metadata.publishedAt)}
         </p>
+        {post.metadata.lastUpdated && (
+          <p className="text-sm text-foreground-muted/66">
+            Updated {formatDate(post.metadata.lastUpdated)}
+          </p>
+        )}
       </div>
       <article className="prose">
         <CustomMDX source={post.content} />
