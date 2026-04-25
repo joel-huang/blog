@@ -5,6 +5,7 @@ import { inter } from "@/app/fonts";
 import { baseUrl } from "@/app/sitemap";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/app/providers/theme-provider";
+import { Analytics } from "@vercel/analytics/next";
 
 const description = "Joel Huang is the Head of AI at Bifrost. He writes about product, startups, technology, synthetic data, autonomous systems, computer vision, and robotics."
 
@@ -109,6 +110,7 @@ export default function RootLayout({
         <ThemeProvider storageKey="theme-preference">
           {children}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
