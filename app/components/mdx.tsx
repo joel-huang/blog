@@ -34,6 +34,7 @@ const FeatureMapGrid = dynamic(
 );
 
 function Table({ data }) {
+  if (!data) return null;
   let headers = data.headers.map((header, index) => (
     <th key={index} className="px-3 py-2">{header}</th>
   ));
