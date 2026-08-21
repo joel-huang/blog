@@ -4,7 +4,6 @@ import { CustomMDX } from "@/app/components/mdx";
 import { Navbar } from "@/app/components/nav";
 import Footer from "@/app/components/footer";
 import path from "path";
-import { BioHoloCard } from "./components/bio-holo-card";
 
 const foundBios = getMDXData(path.join(process.cwd(), "app", "bio"));
 
@@ -32,7 +31,6 @@ export default function Home() {
           </article>
           <AllPosts posts={posts} tags={finalTags} />
         </section>
-        <BioHoloCard />
         <Footer />
       </main>
     </div>
